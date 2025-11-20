@@ -34,6 +34,15 @@ class EnvironmentVariables {
 
   @IsString()
   JWT_EXPIRATION: string;
+
+  @IsString()
+  WEB_PUSH_PUBLIC_KEY: string;
+
+  @IsString()
+  WEB_PUSH_PRIVATE_KEY: string;
+
+  @IsString()
+  WEB_PUSH_SUBJECT: string;
 }
 
 export function validate(config: Record<string, unknown>) {

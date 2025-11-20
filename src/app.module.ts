@@ -9,6 +9,7 @@ import { ComerciosModule } from './modules/comercios/comercios.module';
 import { PedidosModule } from './modules/pedidos/pedidos.module';
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
+import { NotificationsModule } from './modules/notifications/notifications.module';
 
 @Module({
   imports: [
@@ -39,6 +40,7 @@ import { AppService } from './app.service';
     UsuariosModule,
     ComerciosModule,
     PedidosModule,
+    NotificationsModule
   ],
   controllers: [AppController],
   providers: [AppService],
