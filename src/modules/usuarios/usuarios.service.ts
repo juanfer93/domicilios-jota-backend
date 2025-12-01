@@ -80,4 +80,9 @@ export class UsuariosService {
   ): Promise<boolean> {
     return bcrypt.compare(plainPassword, hashedPassword);
   }
+
+  async getAdminStatus(): Promise<{ hasAdmin: boolean }> {
+    const hasAdmin = await this.usuariosRepository.hasAdmin();
+    return { hasAdmin };
+  }
 }

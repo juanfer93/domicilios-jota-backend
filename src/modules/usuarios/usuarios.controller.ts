@@ -62,3 +62,13 @@ export class UsuariosController {
     return this.usuariosService.remove(id);
   }
 }
+
+@Controller('users')
+export class UsersPublicController {
+  constructor(private readonly usuariosService: UsuariosService) {}
+
+  @Get('admin-status')
+  getAdminStatus() {
+    return this.usuariosService.getAdminStatus();
+  }
+}
