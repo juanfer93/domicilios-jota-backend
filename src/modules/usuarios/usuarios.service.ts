@@ -8,10 +8,11 @@ import { UsuariosRepository } from './repositories/usuarios.repository';
 import { CreateUsuarioDto } from './dto/create-usuario.dto';
 import { UpdateUsuarioDto } from './dto/update-usuario.dto';
 import { Usuario } from './entities/usuario.entity';
+import { Rol } from './enums/rol.enum';
 
 @Injectable()
 export class UsuariosService {
-  constructor(private readonly usuariosRepository: UsuariosRepository) {}
+  constructor(private readonly usuariosRepository: UsuariosRepository) { }
 
   async create(createUsuarioDto: CreateUsuarioDto): Promise<Usuario> {
     const { email, password, ...rest } = createUsuarioDto;
@@ -84,5 +85,22 @@ export class UsuariosService {
   async getAdminStatus(): Promise<{ hasAdmin: boolean }> {
     const hasAdmin = await this.usuariosRepository.hasAdmin();
     return { hasAdmin };
+  }
+
+  async createFirstAdmin(createUsuarioDto: CreateUsuarioDto) {
+    const hasAdmin = await this.usuariosRepository.hasAdmin();
+
+    if (hasAdmin) {
+      throw new NotFoundException('Ya existe un administrador');
+    }
+
+    const admin = this.usuariosRepository.create({
+      nombre: createUsuarioDto.nombre,
+      email: createUsuarioDto.email,
+      password: createUsuarioDto.password,
+      rol: Rol.ADMIN,
+    });
+
+    return this.usuariosRepository.save(admin);
   }
 }

@@ -71,4 +71,10 @@ export class UsersPublicController {
   getAdminStatus() {
     return this.usuariosService.getAdminStatus();
   }
+
+  @Post('admin')
+  createFirstAdmin(@Body() createUsuarioDto: CreateUsuarioDto) {
+    // El servicio fuerza rol = ADMIN
+    return this.usuariosService.createFirstAdmin(createUsuarioDto);
+  }
 }
