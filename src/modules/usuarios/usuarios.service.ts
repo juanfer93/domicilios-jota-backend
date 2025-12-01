@@ -82,25 +82,38 @@ export class UsuariosService {
     return bcrypt.compare(plainPassword, hashedPassword);
   }
 
-  async getAdminStatus(): Promise<{ hasAdmin: boolean }> {
-    const hasAdmin = await this.usuariosRepository.hasAdmin();
-    return { hasAdmin };
+  async getAdminStatus() {
+    const admin = await this.usuariosRepository.findOne({
+      where: { rol: Rol.ADMIN },
+      order: { createdAt: "ASC" },
+    });
+
+    return { hasAdmin: !!admin, adminName: admin?.nombre ?? null };
   }
 
-  async createFirstAdmin(createUsuarioDto: CreateUsuarioDto) {
+  async createFirstAdmin(createUsuarioDto: CreateUsuarioDto): Promise<Usuario> {
     const hasAdmin = await this.usuariosRepository.hasAdmin();
 
     if (hasAdmin) {
-      throw new NotFoundException('Ya existe un administrador');
+      throw new ConflictException('Ya existe un administrador');
     }
+
+    const existingUser = await this.usuariosRepository.existsByEmail(createUsuarioDto.email);
+    if (existingUser) {
+      throw new ConflictException('El email ya está registrado');
+    }
+
+    const saltRounds = 10;
+    const hashedPassword = await bcrypt.hash(createUsuarioDto.password, saltRounds);
 
     const admin = this.usuariosRepository.create({
       nombre: createUsuarioDto.nombre,
       email: createUsuarioDto.email,
-      password: createUsuarioDto.password,
+      password: hashedPassword,
       rol: Rol.ADMIN,
     });
 
     return this.usuariosRepository.save(admin);
   }
+
 }
