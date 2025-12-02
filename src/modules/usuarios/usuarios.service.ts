@@ -4,15 +4,22 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import * as bcrypt from 'bcrypt';
+import { InjectRepository } from '@nestjs/typeorm';
+import { Repository } from 'typeorm';
 import { UsuariosRepository } from './repositories/usuarios.repository';
 import { CreateUsuarioDto } from './dto/create-usuario.dto';
 import { UpdateUsuarioDto } from './dto/update-usuario.dto';
 import { Usuario } from './entities/usuario.entity';
 import { Rol } from './enums/rol.enum';
+import { Pedido } from '../pedidos/entities/pedido.entity';
 
 @Injectable()
 export class UsuariosService {
-  constructor(private readonly usuariosRepository: UsuariosRepository) { }
+  constructor(
+    private readonly usuariosRepository: UsuariosRepository,
+    @InjectRepository(Pedido)
+    private readonly pedidosRepository: Repository<Pedido>
+  ) {}
 
   async create(createUsuarioDto: CreateUsuarioDto): Promise<Usuario> {
     const { email, password, ...rest } = createUsuarioDto;
@@ -115,5 +122,19 @@ export class UsuariosService {
 
     return this.usuariosRepository.save(admin);
   }
+
+  async getDashboardSummary() {
+    const totalPedidos = await this.pedidosRepository.count()
+
+    const totalDomiciliarios = await this.usuariosRepository.count({
+      where: { rol: Rol.DOMICILIARIO }
+    })
+
+    return {
+      totalPedidos,
+      totalDomiciliarios
+    }
+  }
+  
 
 }

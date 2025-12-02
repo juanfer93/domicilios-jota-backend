@@ -77,4 +77,11 @@ export class UsersPublicController {
     // El servicio fuerza rol = ADMIN
     return this.usuariosService.createFirstAdmin(createUsuarioDto);
   }
+
+  @Get('dashboard-summary')
+  getDashboardSummar() {
+    return this.usuariosService.getDashboardSummary()
+  }
+
 }
+
