@@ -8,17 +8,21 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { UsuariosRepository } from './repositories/usuarios.repository';
 import { CreateUsuarioDto } from './dto/create-usuario.dto';
+import { CreateDomiciliarioDto } from './dto/create-domiciliario.dto';
 import { UpdateUsuarioDto } from './dto/update-usuario.dto';
+import { EmailService } from 'src/common/email/email.service';
 import { Usuario } from './entities/usuario.entity';
 import { Rol } from './enums/rol.enum';
 import { Pedido } from '../pedidos/entities/pedido.entity';
+import { randomUUID } from 'crypto';
 
 @Injectable()
 export class UsuariosService {
   constructor(
     private readonly usuariosRepository: UsuariosRepository,
     @InjectRepository(Pedido)
-    private readonly pedidosRepository: Repository<Pedido>
+    private readonly pedidosRepository: Repository<Pedido>,
+    private readonly emailService: EmailService
   ) {}
 
   async create(createUsuarioDto: CreateUsuarioDto): Promise<Usuario> {
@@ -135,6 +139,64 @@ export class UsuariosService {
       totalDomiciliarios
     }
   }
+
+   private async hashPassword(plain: string): Promise<string> {
+    const salt = await bcrypt.genSalt(10);
+    return bcrypt.hash(plain, salt);
+  }
+
+  private generarPasswordTemporal(): string {
+    return Math.random().toString(36).slice(-10);
+  }
   
+  async createDomiciliario(dto: CreateDomiciliarioDto): Promise<Usuario> {
+    const { nombre, email } = dto;
+
+    const existente = await this.usuariosRepository.findOne({ where: { email } });
+    if (existente) {
+      throw new ConflictException('Ya existe un usuario con ese correo');
+    }
+
+    const passwordTemporal = this.generarPasswordTemporal();
+    const passwordHash = await this.hashPassword(passwordTemporal);
+
+    const token = randomUUID();
+    const expira = new Date();
+    expira.setHours(expira.getHours() + 24); // 24 horas
+
+    const usuario = this.usuariosRepository.create({
+      nombre,
+      email,
+      password: passwordHash,
+      rol: Rol.DOMICILIARIO,
+      email_confirmado: false,
+      email_confirmacion_token: token,
+      email_confirmacion_expira: expira,
+    });
+
+    const guardado = await this.usuariosRepository.save(usuario);
+
+    await this.emailService.enviarInvitacionDomiciliario(
+      nombre,
+      email,
+      passwordTemporal,
+      token,
+    );
+
+    return guardado;
+  }
+
+   async findByConfirmationToken(token: string): Promise<Usuario | null> {
+    return this.usuariosRepository.findOne({
+      where: { email_confirmacion_token: token },
+    });
+  }
+
+  async marcarEmailConfirmado(usuario: Usuario): Promise<void> {
+    usuario.email_confirmado = true;
+    usuario.email_confirmacion_token = null;
+    usuario.email_confirmacion_expira = null;
+    await this.usuariosRepository.save(usuario);
+  }
 
 }

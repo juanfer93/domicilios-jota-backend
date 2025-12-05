@@ -27,6 +27,15 @@ export class Usuario {
   @Column({ type: 'varchar', length: 20 })
   rol: Rol;
 
+  @Column({ default: false })
+  email_confirmado: boolean;
+
+  @Column({ type: 'varchar', nullable: true })
+  email_confirmacion_token: string | null;
+
+  @Column({ type: 'timestamptz', nullable: true })
+  email_confirmacion_expira: Date | null;
+
   @CreateDateColumn({ name: 'created_at', type: 'timestamptz' })
   createdAt: Date;
 

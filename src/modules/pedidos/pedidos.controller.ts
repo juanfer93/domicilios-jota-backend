@@ -11,7 +11,7 @@ import {
   ParseUUIDPipe,
 } from '@nestjs/common';
 import { PedidosService } from './pedidos.service';
-import { CreatePedidoDto } from './dto/create-pedido.dto';
+import { CreatePedidoAdminDto } from './dto/create-pedido-admin.dto';
 import { UpdateEstadoPedidoDto } from './dto/update-estado-pedido.dto';
 import { FilterPedidosDto } from './dto/filter-pedidos.dto';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
@@ -26,12 +26,10 @@ import { Usuario } from '../usuarios/entities/usuario.entity';
 export class PedidosController {
   constructor(private readonly pedidosService: PedidosService) {}
 
-  @Post()
-  create(
-    @Body() createPedidoDto: CreatePedidoDto,
-    @CurrentUser() usuario: Usuario,
-  ) {
-    return this.pedidosService.create(createPedidoDto, usuario);
+  @Post('admin')
+  @Roles(Rol.ADMIN)
+  async createByAdmin(@Body() dto: CreatePedidoAdminDto) {
+    return this.pedidosService.createByAdmin(dto);
   }
 
   @Get()

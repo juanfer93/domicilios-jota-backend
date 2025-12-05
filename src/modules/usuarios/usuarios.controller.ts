@@ -18,6 +18,7 @@ import { Roles } from '../../common/decorators/roles.decorator';
 import { CurrentUser } from '../../common/decorators/current-user.decorator';
 import { Rol } from './enums/rol.enum';
 import { Usuario } from './entities/usuario.entity';
+import { CreateDomiciliarioDto } from './dto/create-domiciliario.dto';
 
 @Controller('usuarios')
 @UseGuards(JwtAuthGuard, RolesGuard)
@@ -60,6 +61,12 @@ export class UsuariosController {
   @Roles(Rol.ADMIN)
   remove(@Param('id', ParseUUIDPipe) id: string) {
     return this.usuariosService.remove(id);
+  }
+
+  @Post('domiciliarios')
+  @Roles(Rol.ADMIN)
+  async createDomiciliario(@Body() dto: CreateDomiciliarioDto) {
+    return this.usuariosService.createDomiciliario(dto);
   }
 }
 
