@@ -18,14 +18,6 @@ export class Comercio {
   @Column({ type: 'text' })
   direccion: string;
 
-  @Column({
-    name: 'valor_domicilio',
-    type: 'decimal',
-    precision: 10,
-    scale: 2,
-  })
-  valorDomicilio: number;
-
   @CreateDateColumn({ name: 'created_at', type: 'timestamptz' })
   createdAt: Date;
 

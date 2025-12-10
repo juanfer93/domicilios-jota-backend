@@ -12,8 +12,9 @@ import { CreateDomiciliarioDto } from './dto/create-domiciliario.dto';
 import { UpdateUsuarioDto } from './dto/update-usuario.dto';
 import { EmailService } from 'src/common/email/email.service';
 import { Usuario } from './entities/usuario.entity';
-import { Rol } from './enums/rol.enum';
 import { Pedido } from '../pedidos/entities/pedido.entity';
+import { Comercio } from '../comercios/entities/comercio.entity';
+import { Rol } from './enums/rol.enum';
 import { randomUUID } from 'crypto';
 
 @Injectable()
@@ -22,8 +23,10 @@ export class UsuariosService {
     private readonly usuariosRepository: UsuariosRepository,
     @InjectRepository(Pedido)
     private readonly pedidosRepository: Repository<Pedido>,
+    @InjectRepository(Comercio)
+    private readonly comerciosRepository: Repository<Comercio>,
     private readonly emailService: EmailService
-  ) {}
+  ) { }
 
   async create(createUsuarioDto: CreateUsuarioDto): Promise<Usuario> {
     const { email, password, ...rest } = createUsuarioDto;
@@ -134,13 +137,16 @@ export class UsuariosService {
       where: { rol: Rol.DOMICILIARIO }
     })
 
+    const totalComercios = await this.comerciosRepository.count()
+
     return {
       totalPedidos,
-      totalDomiciliarios
+      totalDomiciliarios,
+      totalComercios
     }
   }
 
-   private async hashPassword(plain: string): Promise<string> {
+  private async hashPassword(plain: string): Promise<string> {
     const salt = await bcrypt.genSalt(10);
     return bcrypt.hash(plain, salt);
   }
@@ -148,7 +154,7 @@ export class UsuariosService {
   private generarPasswordTemporal(): string {
     return Math.random().toString(36).slice(-10);
   }
-  
+
   async createDomiciliario(dto: CreateDomiciliarioDto): Promise<Usuario> {
     const { nombre, email } = dto;
 
@@ -162,7 +168,7 @@ export class UsuariosService {
 
     const token = randomUUID();
     const expira = new Date();
-    expira.setHours(expira.getHours() + 24); // 24 horas
+    expira.setHours(expira.getHours() + 24);
 
     const usuario = this.usuariosRepository.create({
       nombre,
@@ -186,7 +192,31 @@ export class UsuariosService {
     return guardado;
   }
 
-   async findByConfirmationToken(token: string): Promise<Usuario | null> {
+  async findAllDomiciliarios(): Promise<Pick<Usuario, 'id' | 'nombre' | 'email'>[]> {
+    const domiciliarios = await this.usuariosRepository.find({
+      where: { rol: Rol.DOMICILIARIO },
+      select: ['id', 'nombre', 'email'],
+      order: { createdAt: 'DESC' },
+    });
+
+    return domiciliarios;
+  }
+
+  async removeDomiciliario(id: string): Promise<{ message: string }> {
+    const domi = await this.usuariosRepository.findOne({
+      where: { id, rol: Rol.DOMICILIARIO },
+    });
+
+    if (!domi) {
+      throw new NotFoundException('Domiciliario no encontrado');
+    }
+
+    await this.usuariosRepository.remove(domi);
+
+    return { message: 'Domiciliario eliminado correctamente' };
+  }
+
+  async findByConfirmationToken(token: string): Promise<Usuario | null> {
     return this.usuariosRepository.findOne({
       where: { email_confirmacion_token: token },
     });

@@ -42,6 +42,24 @@ export class UsuariosController {
     return this.usuariosService.findOneWithPedidos(user.id);
   }
 
+  @Post('domiciliarios')
+  @Roles(Rol.ADMIN)
+  async createDomiciliario(@Body() dto: CreateDomiciliarioDto) {
+    return this.usuariosService.createDomiciliario(dto);
+  }
+
+  @Get('domiciliarios')
+  @Roles(Rol.ADMIN)
+  findAllDomiciliarios() {
+    return this.usuariosService.findAllDomiciliarios();
+  }
+
+  @Delete('domiciliarios/:id')
+  @Roles(Rol.ADMIN)
+  removeDomiciliario(@Param('id', new ParseUUIDPipe()) id: string) {
+    return this.usuariosService.removeDomiciliario(id);
+  }
+
   @Get(':id')
   @Roles(Rol.ADMIN)
   findOne(@Param('id', ParseUUIDPipe) id: string) {
@@ -63,11 +81,6 @@ export class UsuariosController {
     return this.usuariosService.remove(id);
   }
 
-  @Post('domiciliarios')
-  @Roles(Rol.ADMIN)
-  async createDomiciliario(@Body() dto: CreateDomiciliarioDto) {
-    return this.usuariosService.createDomiciliario(dto);
-  }
 }
 
 @Controller('users')
@@ -81,7 +94,6 @@ export class UsersPublicController {
 
   @Post('admin')
   createFirstAdmin(@Body() createUsuarioDto: CreateUsuarioDto) {
-    // El servicio fuerza rol = ADMIN
     return this.usuariosService.createFirstAdmin(createUsuarioDto);
   }
 

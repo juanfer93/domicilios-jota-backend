@@ -1,11 +1,8 @@
 import {
   IsNotEmpty,
-  IsNumber,
-  IsPositive,
   IsString,
   MaxLength,
 } from 'class-validator';
-import { Transform } from 'class-transformer';
 
 export class CreateComercioDto {
   @IsString()
@@ -16,12 +13,4 @@ export class CreateComercioDto {
   @IsString()
   @IsNotEmpty({ message: 'La dirección es requerida' })
   direccion: string;
-
-  @IsNumber(
-    { maxDecimalPlaces: 2 },
-    { message: 'El valor del domicilio debe tener máximo 2 decimales' },
-  )
-  @IsPositive({ message: 'El valor del domicilio debe ser positivo' })
-  @Transform(({ value }) => parseFloat(value))
-  valorDomicilio: number;
 }
