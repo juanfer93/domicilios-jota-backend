@@ -1,10 +1,10 @@
 import { IsEnum, IsOptional, IsUUID } from 'class-validator';
-import { EstadoPedido } from '../enums/estado-pedido.enum';
+import { PedidoEstado } from '../enums/estado-pedido.enum';
 
 export class FilterPedidosDto {
   @IsOptional()
-  @IsEnum(EstadoPedido)
-  estado?: EstadoPedido;
+  @IsEnum(PedidoEstado)
+  estado?: PedidoEstado;
 
   @IsOptional()
   @IsUUID('4')

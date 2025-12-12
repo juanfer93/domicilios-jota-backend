@@ -1,47 +1,19 @@
 import {
   Injectable,
   NotFoundException,
-  ForbiddenException,
 } from '@nestjs/common';
 import { PedidosRepository } from './repositories/pedidos.repository';
-import { ComerciosService } from '../comercios/comercios.service';
-import { UsuariosService } from '../usuarios/usuarios.service';
 import { CreatePedidoAdminDto } from './dto/create-pedido-admin.dto';
-import { UpdateEstadoPedidoDto } from './dto/update-estado-pedido.dto';
 import { FilterPedidosDto } from './dto/filter-pedidos.dto';
 import { Pedido } from './entities/pedido.entity';
-import { EstadoPedido } from './enums/estado-pedido.enum';
-import { Usuario } from '../usuarios/entities/usuario.entity';
-import { Rol } from '../usuarios/enums/rol.enum';
+import { PedidoEstado } from './enums/estado-pedido.enum';
+import { Between } from 'typeorm';
 
 @Injectable()
 export class PedidosService {
   constructor(
     private readonly pedidosRepository: PedidosRepository,
-    private readonly usuariosService: UsuariosService,
-    private readonly comerciosService: ComerciosService,
   ) { }
-
-  async createByAdmin(dto: CreatePedidoAdminDto): Promise<Pedido> {
-    const usuario = await this.usuariosService.findOne(dto.usuarioId);
-    if (!usuario) {
-      throw new NotFoundException('Usuario no encontrado');
-    }
-
-    const comercio = await this.comerciosService.findOne(dto.comercioId);
-    if (!comercio) {
-      throw new NotFoundException('Comercio no encontrado');
-    }
-
-    const pedido = this.pedidosRepository.create({
-      usuario,
-      comercio,
-      valorFinal: dto.valorFinal,
-      estado: EstadoPedido.PENDIENTE,
-    });
-
-    return this.pedidosRepository.save(pedido);
-  }
 
 
   async findAll(filters: FilterPedidosDto): Promise<Pedido[]> {
@@ -62,36 +34,71 @@ export class PedidosService {
     return this.pedidosRepository.findByUsuario(usuarioId);
   }
 
-  async updateEstado(
-    id: string,
-    updateEstadoDto: UpdateEstadoPedidoDto,
-    usuario: Usuario,
-  ): Promise<Pedido> {
-    const pedido = await this.findOne(id);
+  async getPedidosDelDia() {
+    const start = new Date();
+    start.setHours(0, 0, 0, 0);
 
-    if (usuario.rol !== Rol.ADMIN) {
-      if (pedido.usuarioId !== usuario.id) {
-        throw new ForbiddenException(
-          'No puedes modificar pedidos de otros usuarios',
-        );
-      }
+    const end = new Date();
+    end.setHours(23, 59, 59, 999);
 
-      if (updateEstadoDto.estado !== EstadoPedido.CANCELADO) {
-        throw new ForbiddenException('Solo puedes cancelar tus pedidos');
-      }
+    return this.pedidosRepository.find({
+      where: {
+        createdAt: Between(start, end),
+      },
+      relations: ['usuario', 'comercio'],
+      order: { createdAt: 'DESC' },
+    });
+  }
 
-      if (pedido.estado !== EstadoPedido.PENDIENTE) {
-        throw new ForbiddenException('Solo puedes cancelar pedidos pendientes');
-      }
-    }
-
-    pedido.estado = updateEstadoDto.estado;
+  async createPedidoByAdmin(
+    dto: CreatePedidoAdminDto,
+    adminId: string,
+  ) {
+    const pedido = this.pedidosRepository.create({
+      usuarioId: dto.usuarioId,
+      comercioId: dto.comercioId,
+      valorFinal: dto.valorFinal,
+      valorDomicilio: dto.valorDomicilio ?? 0,
+      estado: PedidoEstado.EN_PROCESO,
+      assignedBy: adminId,
+      assignedAt: new Date(),
+    });
 
     return this.pedidosRepository.save(pedido);
   }
+
+  async updateEstadoPedido(
+    pedidoId: string,
+    estado: PedidoEstado,
+  ) {
+    await this.pedidosRepository.update(pedidoId, { estado });
+    return this.pedidosRepository.findOne({ where: { id: pedidoId } });
+  }
+
+
+  async getHistorialByDate(date: string) {
+    return this.pedidosRepository
+      .createQueryBuilder("p")
+      .leftJoinAndSelect("p.usuario", "u")
+      .leftJoinAndSelect("p.comercio", "c")
+      .where(
+        `
+      p.created_at >= (CAST(:date AS date) AT TIME ZONE 'America/Bogota')
+      AND
+      p.created_at <  ((CAST(:date AS date) + INTERVAL '1 day') AT TIME ZONE 'America/Bogota')
+      `,
+        { date }
+      )
+      .orderBy("p.created_at", "DESC")
+      .getMany();
+  }
+
+
 
   async remove(id: string): Promise<void> {
     const pedido = await this.findOne(id);
     await this.pedidosRepository.remove(pedido);
   }
+
+
 }

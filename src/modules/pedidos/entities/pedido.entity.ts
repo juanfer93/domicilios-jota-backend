@@ -8,7 +8,7 @@ import {
 } from 'typeorm';
 import { Usuario } from '../../usuarios/entities/usuario.entity';
 import { Comercio } from '../../comercios/entities/comercio.entity';
-import { EstadoPedido } from '../enums/estado-pedido.enum';
+import { PedidoEstado } from '../enums/estado-pedido.enum';
 
 @Entity('pedidos')
 export class Pedido {
@@ -37,8 +37,12 @@ export class Pedido {
   })
   valorFinal: number;
 
-  @Column({ type: 'varchar', length: 20 })
-  estado: EstadoPedido;
+  @Column({
+    type: "enum",
+    enum: PedidoEstado,
+    default: PedidoEstado.EN_PROCESO,
+  })
+  estado: PedidoEstado;
 
   @CreateDateColumn({ name: 'created_at', type: 'timestamptz' })
   createdAt: Date;
@@ -54,4 +58,11 @@ export class Pedido {
   })
   @JoinColumn({ name: 'comercio_id' })
   comercio: Comercio;
+
+  @Column({ name: 'assigned_by', type: 'uuid', nullable: true })
+  assignedBy: string | null;
+
+  @Column({ name: 'assigned_at', type: 'timestamptz', nullable: true })
+  assignedAt: Date | null;
+
 }

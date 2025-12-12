@@ -5,63 +5,50 @@ import {
   Body,
   Patch,
   Param,
-  Delete,
   UseGuards,
   Query,
-  ParseUUIDPipe,
+  Req,
 } from '@nestjs/common';
 import { PedidosService } from './pedidos.service';
 import { CreatePedidoAdminDto } from './dto/create-pedido-admin.dto';
-import { UpdateEstadoPedidoDto } from './dto/update-estado-pedido.dto';
-import { FilterPedidosDto } from './dto/filter-pedidos.dto';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { RolesGuard } from '../../common/guards/roles.guard';
 import { Roles } from '../../common/decorators/roles.decorator';
-import { CurrentUser } from '../../common/decorators/current-user.decorator';
+import { UpdatePedidoEstadoDto } from './dto/update-pedido-estado.dto';
 import { Rol } from '../usuarios/enums/rol.enum';
-import { Usuario } from '../usuarios/entities/usuario.entity';
 
-@Controller('pedidos')
-@UseGuards(JwtAuthGuard)
+@UseGuards(JwtAuthGuard, RolesGuard)
+@Roles(Rol.ADMIN)
+@Controller('pedidos/admin')
 export class PedidosController {
   constructor(private readonly pedidosService: PedidosService) {}
 
-  @Post('admin')
-  @Roles(Rol.ADMIN)
-  async createByAdmin(@Body() dto: CreatePedidoAdminDto) {
-    return this.pedidosService.createByAdmin(dto);
+  @Get('today')
+  getPedidosDelDia() {
+    return this.pedidosService.getPedidosDelDia();
   }
 
-  @Get()
-  @UseGuards(RolesGuard)
-  @Roles(Rol.ADMIN)
-  findAll(@Query() filters: FilterPedidosDto) {
-    return this.pedidosService.findAll(filters);
-  }
-
-  @Get('mis-pedidos')
-  findMyPedidos(@CurrentUser('id') usuarioId: string) {
-    return this.pedidosService.findMyPedidos(usuarioId);
-  }
-
-  @Get(':id')
-  findOne(@Param('id', ParseUUIDPipe) id: string) {
-    return this.pedidosService.findOne(id);
+  @Post()
+  createPedido(
+    @Body() dto: CreatePedidoAdminDto,
+    @Req() req,
+  ) {
+    return this.pedidosService.createPedidoByAdmin(
+      dto,
+      req.user.id,
+    );
   }
 
   @Patch(':id/estado')
   updateEstado(
-    @Param('id', ParseUUIDPipe) id: string,
-    @Body() updateEstadoDto: UpdateEstadoPedidoDto,
-    @CurrentUser() usuario: Usuario,
+    @Param('id') id: string,
+    @Body() dto: UpdatePedidoEstadoDto,
   ) {
-    return this.pedidosService.updateEstado(id, updateEstadoDto, usuario);
+    return this.pedidosService.updateEstadoPedido(id, dto.estado);
   }
 
-  @Delete(':id')
-  @UseGuards(RolesGuard)
-  @Roles(Rol.ADMIN)
-  remove(@Param('id', ParseUUIDPipe) id: string) {
-    return this.pedidosService.remove(id);
+  @Get('history')
+  getHistorial(@Query('date') date: string) {
+    return this.pedidosService.getHistorialByDate(date);
   }
 }
