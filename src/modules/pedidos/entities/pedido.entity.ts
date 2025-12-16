@@ -65,4 +65,12 @@ export class Pedido {
   @Column({ name: 'assigned_at', type: 'timestamptz', nullable: true })
   assignedAt: Date | null;
 
+  @Column({
+    name: 'direccion_destino',
+    type: 'varchar',
+    length: 255,
+    nullable: false,
+  })
+  direccionDestino: string;
+
 }

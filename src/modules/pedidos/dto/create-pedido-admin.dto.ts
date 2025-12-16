@@ -1,4 +1,4 @@
-import { IsNotEmpty, IsNumber, IsOptional, IsPositive, IsUUID } from 'class-validator';
+import { IsNotEmpty, IsNumber, IsOptional, IsPositive, IsString, IsUUID } from 'class-validator';
 
 export class CreatePedidoAdminDto {
   @IsUUID()
@@ -16,4 +16,8 @@ export class CreatePedidoAdminDto {
   @IsOptional()
   @IsNumber()
   valorDomicilio?: number;
+
+  @IsString()
+  @IsNotEmpty()
+  direccionDestino: string;
 }

@@ -59,6 +59,7 @@ export class PedidosService {
       comercioId: dto.comercioId,
       valorFinal: dto.valorFinal,
       valorDomicilio: dto.valorDomicilio ?? 0,
+      direccionDestino: dto.direccionDestino,
       estado: PedidoEstado.EN_PROCESO,
       assignedBy: adminId,
       assignedAt: new Date(),
@@ -74,7 +75,6 @@ export class PedidosService {
     await this.pedidosRepository.update(pedidoId, { estado });
     return this.pedidosRepository.findOne({ where: { id: pedidoId } });
   }
-
 
   async getHistorialByDate(date: string) {
     return this.pedidosRepository
@@ -93,12 +93,23 @@ export class PedidosService {
       .getMany();
   }
 
+  async getCurrentPedidoForDomiciliario(usuarioId: string) {
+    const pedidos = await this.pedidosRepository.find({
+      where: {
+        usuario: { id: usuarioId },
+        estado: PedidoEstado.EN_PROCESO,
+      },
+      relations: ['usuario', 'comercio'],
+      order: { createdAt: 'DESC' },
+      take: 1,
+    });
 
+    return pedidos[0] ?? null;
+  }
 
   async remove(id: string): Promise<void> {
     const pedido = await this.findOne(id);
     await this.pedidosRepository.remove(pedido);
   }
-
 
 }

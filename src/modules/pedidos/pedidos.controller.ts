@@ -8,6 +8,7 @@ import {
   UseGuards,
   Query,
   Req,
+  NotFoundException,
 } from '@nestjs/common';
 import { PedidosService } from './pedidos.service';
 import { CreatePedidoAdminDto } from './dto/create-pedido-admin.dto';
@@ -21,7 +22,7 @@ import { Rol } from '../usuarios/enums/rol.enum';
 @Roles(Rol.ADMIN)
 @Controller('pedidos/admin')
 export class PedidosController {
-  constructor(private readonly pedidosService: PedidosService) {}
+  constructor(private readonly pedidosService: PedidosService) { }
 
   @Get('today')
   getPedidosDelDia() {
@@ -51,4 +52,21 @@ export class PedidosController {
   getHistorial(@Query('date') date: string) {
     return this.pedidosService.getHistorialByDate(date);
   }
+
+  @Get('domiciliarios/current')
+  @Roles(Rol.DOMICILIARIO)
+  async getCurrentForDomiciliario(@Req() req: any) {
+    const userId = req.user.sub;
+
+    const pedido = await this.pedidosService.getCurrentPedidoForDomiciliario(
+      userId,
+    );
+
+    if (!pedido) {
+      throw new NotFoundException('No hay servicio en curso para este domiciliario.');
+    }
+
+    return pedido; 
+  }
+
 }
