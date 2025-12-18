@@ -7,6 +7,8 @@ import { AuthModule } from './modules/auth/auth.module';
 import { UsuariosModule } from './modules/usuarios/usuarios.module';
 import { ComerciosModule } from './modules/comercios/comercios.module';
 import { PedidosModule } from './modules/pedidos/pedidos.module';
+import { AppController } from './app.controller';
+import { AppService } from './app.service';
 
 @Module({
   imports: [
@@ -38,5 +40,7 @@ import { PedidosModule } from './modules/pedidos/pedidos.module';
     ComerciosModule,
     PedidosModule,
   ],
+  controllers: [AppController],
+  providers: [AppService],
 })
 export class AppModule {}
