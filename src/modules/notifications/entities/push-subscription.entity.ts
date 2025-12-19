@@ -5,6 +5,7 @@ import {
   ManyToOne,
   CreateDateColumn,
   Index,
+  JoinColumn,   
 } from 'typeorm';
 import { Usuario } from '../../usuarios/entities/usuario.entity';
 
@@ -23,10 +24,11 @@ export class PushSubscriptionEntity {
   @Column({ type: 'text' })
   auth: string;
 
-  @Column({ type: 'bigint', nullable: true })
+  @Column({ name: 'expiration_time', type: 'bigint', nullable: true })
   expirationTime: number | null;
 
   @ManyToOne(() => Usuario, { onDelete: 'CASCADE' })
+  @JoinColumn({ name: 'usuario_id' })   // ✅ CLAVE
   usuario: Usuario;
 
   @Column({ name: 'usuario_id', type: 'uuid' })

@@ -7,7 +7,6 @@ import { CreatePedidoAdminDto } from './dto/create-pedido-admin.dto';
 import { FilterPedidosDto } from './dto/filter-pedidos.dto';
 import { Pedido } from './entities/pedido.entity';
 import { PedidoEstado } from './enums/estado-pedido.enum';
-import { Between } from 'typeorm';
 
 @Injectable()
 export class PedidosService {
@@ -35,19 +34,17 @@ export class PedidosService {
   }
 
   async getPedidosDelDia() {
-    const start = new Date();
-    start.setHours(0, 0, 0, 0);
-
-    const end = new Date();
-    end.setHours(23, 59, 59, 999);
-
-    return this.pedidosRepository.find({
-      where: {
-        createdAt: Between(start, end),
-      },
-      relations: ['usuario', 'comercio'],
-      order: { createdAt: 'DESC' },
-    });
+    return this.pedidosRepository
+      .createQueryBuilder("p")
+      .leftJoinAndSelect("p.usuario", "u")
+      .leftJoinAndSelect("p.comercio", "c")
+      .where(`
+      p.created_at >= (((now() AT TIME ZONE 'America/Bogota')::date) AT TIME ZONE 'America/Bogota')
+      AND
+      p.created_at <  ((((now() AT TIME ZONE 'America/Bogota')::date) + INTERVAL '1 day') AT TIME ZONE 'America/Bogota')
+    `)
+      .orderBy("p.created_at", "DESC")
+      .getMany();
   }
 
   async createPedidoByAdmin(
@@ -77,17 +74,19 @@ export class PedidosService {
   }
 
   async getHistorialByDate(date: string) {
+    const dateOnly = (date ?? "").slice(0, 10);
+
     return this.pedidosRepository
       .createQueryBuilder("p")
       .leftJoinAndSelect("p.usuario", "u")
       .leftJoinAndSelect("p.comercio", "c")
       .where(
         `
-      p.created_at >= (CAST(:date AS date) AT TIME ZONE 'America/Bogota')
+      p.created_at >= ((:dateOnly::date) AT TIME ZONE 'America/Bogota')
       AND
-      p.created_at <  ((CAST(:date AS date) + INTERVAL '1 day') AT TIME ZONE 'America/Bogota')
+      p.created_at <  (((:dateOnly::date) + INTERVAL '1 day') AT TIME ZONE 'America/Bogota')
       `,
-        { date }
+        { dateOnly }
       )
       .orderBy("p.created_at", "DESC")
       .getMany();
