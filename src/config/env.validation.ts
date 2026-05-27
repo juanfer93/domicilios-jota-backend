@@ -1,5 +1,5 @@
 import { plainToInstance } from 'class-transformer';
-import { IsEnum, IsNumber, IsString, validateSync } from 'class-validator';
+import { IsEnum, IsNumber, IsString, validateSync, IsOptional } from 'class-validator';
 
 enum Environment {
   Development = 'development',
@@ -36,12 +36,15 @@ class EnvironmentVariables {
   JWT_EXPIRATION: string;
 
   @IsString()
+  @IsOptional()
   WEB_PUSH_PUBLIC_KEY: string;
 
   @IsString()
+  @IsOptional()
   WEB_PUSH_PRIVATE_KEY: string;
 
   @IsString()
+  @IsOptional()
   WEB_PUSH_SUBJECT: string;
 }
 
