@@ -26,7 +26,9 @@ async function bootstrap() {
   const allowedOrigins = [
     "http://localhost:3001",
     "http://127.0.0.1:3001",
-    process.env.FRONTEND_URL, // opcional
+    "http://192.168.1.10:8081",  
+    "http://192.168.1.10:8082", 
+    process.env.FRONTEND_URL, 
   ].filter(Boolean);
 
   app.enableCors({
