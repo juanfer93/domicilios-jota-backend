@@ -24,7 +24,7 @@ import { Rol } from '../usuarios/enums/rol.enum';
 export class PedidosController {
   constructor(private readonly pedidosService: PedidosService) { }
 
-  @Get('today')
+  @Get('hoy')
   getPedidosDelDia() {
     return this.pedidosService.getPedidosDelDia();
   }

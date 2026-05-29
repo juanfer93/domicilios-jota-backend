@@ -20,9 +20,9 @@ import { Rol } from './enums/rol.enum';
 import { Usuario } from './entities/usuario.entity';
 import { CreateDomiciliarioDto } from './dto/create-domiciliario.dto';
 
-@Controller('usuarios')
+@Controller('domiciliarios')
 @UseGuards(JwtAuthGuard, RolesGuard)
-export class UsuariosController {
+export class DomiciliariosPublicController {
   constructor(private readonly usuariosService: UsuariosService) {}
 
   @Post()
