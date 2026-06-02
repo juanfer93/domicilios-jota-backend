@@ -40,10 +40,10 @@ export class EmailService {
     passwordTemporal: string,
     token: string,
   ) {
-    const frontendUrl =
-      process.env.FRONTEND_URL || 'http://localhost:3001';
+    const frontendUrl = process.env.FRONTEND_URL || 'http://192.168.1.10:8081';
 
-    const urlConfirmacion = `${frontendUrl}/create-password?token=${token}`;
+    // URL correcta para el frontend móvil
+    const urlConfirmacion = `${frontendUrl}/auth/domiciliario/set-password?token=${token}`;
 
     // Contenido del correo
     const subject = 'Invitación como domiciliario';
@@ -111,8 +111,6 @@ Saludos.
         `Error enviando email a ${email}: ${error.message}`,
         error.stack,
       );
-      // Si quieres, aquí podrías lanzar una excepción para que falle la creación.
-      // throw new InternalServerErrorException('No se pudo enviar el email');
     }
   }
 }
