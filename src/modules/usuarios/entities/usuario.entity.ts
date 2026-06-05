@@ -12,33 +12,33 @@ import { Pedido } from '../../pedidos/entities/pedido.entity';
 @Entity('usuarios')
 export class Usuario {
   @PrimaryGeneratedColumn('uuid')
-  id: string;
+  id!: string;
 
   @Column({ type: 'varchar', length: 100 })
-  nombre: string;
+  nombre!: string;
 
   @Column({ type: 'varchar', length: 150, unique: true })
-  email: string;
+  email!: string;
 
   @Exclude()
   @Column({ type: 'text' })
-  password: string;
+  password!: string;
 
   @Column({ type: 'varchar', length: 20 })
-  rol: Rol;
+  rol!: Rol;
 
   @Column({ default: false })
-  email_confirmado: boolean;
+  email_confirmado!: boolean;
 
   @Column({ type: 'varchar', nullable: true })
-  email_confirmacion_token: string | null;
+  email_confirmacion_token!: string | null;
 
   @Column({ type: 'timestamptz', nullable: true })
-  email_confirmacion_expira: Date | null;
+  email_confirmacion_expira!: Date | null;
 
   @CreateDateColumn({ name: 'created_at', type: 'timestamptz' })
-  createdAt: Date;
+  createdAt!: Date;
 
   @OneToMany(() => Pedido, (pedido) => pedido.usuario)
-  pedidos: Pedido[];
+  pedidos!: Pedido[];
 }
