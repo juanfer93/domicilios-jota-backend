@@ -40,7 +40,7 @@ export class EmailService {
     passwordTemporal: string,
     token: string,
   ) {
-    const frontendUrl = process.env.FRONTEND_URL || 'http://192.168.1.10:8081';
+    const frontendUrl = process.env.FRONTEND_URL || 'http://192.168.1.26:8081';
 
     // URL correcta para el frontend móvil
     const urlConfirmacion = `${frontendUrl}/auth/domiciliario/set-password?token=${token}`;
