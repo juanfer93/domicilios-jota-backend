@@ -42,10 +42,12 @@ export class EmailService {
   ) {
     const frontendUrl = process.env.FRONTEND_URL || 'http://192.168.1.26:8081';
 
-    // URL correcta para el frontend móvil
-    const urlConfirmacion = `${frontendUrl}/auth/domiciliario/set-password?token=${token}`;
+    // Decidir si usamos deep link (app) o URL web
+    const useDeepLink = process.env.USE_DEEP_LINK === 'true';
 
-    // Contenido del correo
+    const urlConfirmacion = useDeepLink
+      ? `${process.env.APP_SCHEME}://auth/domiciliario/set-password?token=${token}`
+      : `${process.env.FRONTEND_URL}/auth/domiciliario/set-password?token=${token}`;
     const subject = 'Invitación como domiciliario';
     const text = `
 Hola ${nombre},
