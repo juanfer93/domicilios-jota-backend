@@ -106,10 +106,12 @@ Saludos.
       });
 
       this.logger.log(`Email de invitación enviado correctamente a ${email}`);
-    } catch (error) {
+    } catch (error: unknown) {
+      const message = error instanceof Error ? error.message : String(error);
+      const stack = error instanceof Error ? error.stack : undefined;
       this.logger.error(
-        `Error enviando email a ${email}: ${error.message}`,
-        error.stack,
+        `Error enviando email a ${email}: ${message}`,
+        stack,
       );
     }
   }
