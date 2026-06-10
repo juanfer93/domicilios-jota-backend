@@ -22,7 +22,7 @@ import { Rol } from '../usuarios/enums/rol.enum';
 @Roles(Rol.ADMIN)
 @Controller('pedidos/admin')
 export class PedidosController {
-  constructor(private readonly pedidosService: PedidosService) { }
+  constructor(private readonly pedidosService: PedidosService) {}
 
   @Get('hoy')
   getPedidosDelDia() {
@@ -30,21 +30,12 @@ export class PedidosController {
   }
 
   @Post()
-  createPedido(
-    @Body() dto: CreatePedidoAdminDto,
-    @Req() req,
-  ) {
-    return this.pedidosService.createPedidoByAdmin(
-      dto,
-      req.user.id,
-    );
+  createPedido(@Body() dto: CreatePedidoAdminDto, @Req() req) {
+    return this.pedidosService.createPedidoByAdmin(dto, req.user.id);
   }
 
   @Patch(':id/estado')
-  updateEstado(
-    @Param('id') id: string,
-    @Body() dto: UpdatePedidoEstadoDto,
-  ) {
+  updateEstado(@Param('id') id: string, @Body() dto: UpdatePedidoEstadoDto) {
     return this.pedidosService.updateEstadoPedido(id, dto.estado);
   }
 
@@ -56,17 +47,17 @@ export class PedidosController {
   @Get('domiciliarios/current')
   @Roles(Rol.DOMICILIARIO)
   async getCurrentForDomiciliario(@Req() req: any) {
-    const userId = req.user.sub;
+    const userId = req.user.id;
 
-    const pedido = await this.pedidosService.getCurrentPedidoForDomiciliario(
-      userId,
-    );
+    const pedido =
+      await this.pedidosService.getCurrentPedidoForDomiciliario(userId);
 
     if (!pedido) {
-      throw new NotFoundException('No hay servicio en curso para este domiciliario.');
+      throw new NotFoundException(
+        'No hay servicio en curso para este domiciliario.',
+      );
     }
 
-    return pedido; 
+    return pedido;
   }
-
 }

@@ -6,9 +6,15 @@ import { Pedido } from './entities/pedido.entity';
 import { PedidosRepository } from './repositories/pedidos.repository';
 import { ComerciosModule } from '../comercios/comercios.module';
 import { UsuariosModule } from '../usuarios/usuarios.module';
+import { NotificationsModule } from '../notifications/notifications.module';
 
 @Module({
-  imports: [TypeOrmModule.forFeature([Pedido]), UsuariosModule, ComerciosModule],
+  imports: [
+    TypeOrmModule.forFeature([Pedido]),
+    UsuariosModule,
+    ComerciosModule,
+    NotificationsModule,
+  ],
   controllers: [PedidosController],
   providers: [PedidosService, PedidosRepository],
   exports: [PedidosService],

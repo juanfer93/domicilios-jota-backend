@@ -1,4 +1,8 @@
-import { BadRequestException, Injectable, UnauthorizedException } from '@nestjs/common';
+import {
+  BadRequestException,
+  Injectable,
+  UnauthorizedException,
+} from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import { UsuariosService } from '../usuarios/usuarios.service';
 import { LoginDto } from './dto/login.dto';
@@ -52,6 +56,12 @@ export class AuthService {
       throw new UnauthorizedException('Credenciales inválidas');
     }
 
+    if (usuario.rol === Rol.DOMICILIARIO && !usuario.email_confirmado) {
+      throw new UnauthorizedException(
+        'Debes confirmar tu cuenta antes de iniciar sesión',
+      );
+    }
+
     const tokens = this.generateTokens(usuario);
 
     return {
@@ -77,7 +87,7 @@ export class AuthService {
     };
   }
 
-   async confirmarDomiciliario(token: string): Promise<void> {
+  async confirmarDomiciliario(token: string): Promise<void> {
     const usuario = await this.usuariosService.findByConfirmationToken(token);
 
     if (!usuario || usuario.rol !== Rol.DOMICILIARIO) {
@@ -115,7 +125,7 @@ export class AuthService {
     return usuario;
   }
 
-    async setPasswordDomiciliario(dto: SetPasswordDomiciliarioDto) {
+  async setPasswordDomiciliario(dto: SetPasswordDomiciliarioDto) {
     const { token, password } = dto;
 
     const usuario = await this.usuariosService.findByConfirmationToken(token);
@@ -140,6 +150,4 @@ export class AuthService {
       message: 'Contraseña creada correctamente. Ya puedes iniciar sesión.',
     };
   }
-
-
 }

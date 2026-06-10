@@ -1,98 +1,140 @@
-<p align="center">
-  <a href="http://nestjs.com/" target="blank"><img src="https://nestjs.com/img/logo-small.svg" width="120" alt="Nest Logo" /></a>
-</p>
+# Jota Delivery Backend
 
-[circleci-image]: https://img.shields.io/circleci/build/github/nestjs/nest/master?token=abc123def456
-[circleci-url]: https://circleci.com/gh/nestjs/nest
+API REST para administrar usuarios, comercios, pedidos y notificaciones de Jota Delivery.
 
-  <p align="center">A progressive <a href="http://nodejs.org" target="_blank">Node.js</a> framework for building efficient and scalable server-side applications.</p>
-    <p align="center">
-<a href="https://www.npmjs.com/~nestjscore" target="_blank"><img src="https://img.shields.io/npm/v/@nestjs/core.svg" alt="NPM Version" /></a>
-<a href="https://www.npmjs.com/~nestjscore" target="_blank"><img src="https://img.shields.io/npm/l/@nestjs/core.svg" alt="Package License" /></a>
-<a href="https://www.npmjs.com/~nestjscore" target="_blank"><img src="https://img.shields.io/npm/dm/@nestjs/common.svg" alt="NPM Downloads" /></a>
-<a href="https://circleci.com/gh/nestjs/nest" target="_blank"><img src="https://img.shields.io/circleci/build/github/nestjs/nest/master" alt="CircleCI" /></a>
-<a href="https://discord.gg/G7Qnnhy" target="_blank"><img src="https://img.shields.io/badge/discord-online-brightgreen.svg" alt="Discord"/></a>
-<a href="https://opencollective.com/nest#backer" target="_blank"><img src="https://opencollective.com/nest/backers/badge.svg" alt="Backers on Open Collective" /></a>
-<a href="https://opencollective.com/nest#sponsor" target="_blank"><img src="https://opencollective.com/nest/sponsors/badge.svg" alt="Sponsors on Open Collective" /></a>
-  <a href="https://paypal.me/kamilmysliwiec" target="_blank"><img src="https://img.shields.io/badge/Donate-PayPal-ff3f59.svg" alt="Donate us"/></a>
-    <a href="https://opencollective.com/nest#sponsor"  target="_blank"><img src="https://img.shields.io/badge/Support%20us-Open%20Collective-41B883.svg" alt="Support us"></a>
-  <a href="https://twitter.com/nestframework" target="_blank"><img src="https://img.shields.io/twitter/follow/nestframework.svg?style=social&label=Follow" alt="Follow us on Twitter"></a>
-</p>
-  <!--[![Backers on Open Collective](https://opencollective.com/nest/backers/badge.svg)](https://opencollective.com/nest#backer)
-  [![Sponsors on Open Collective](https://opencollective.com/nest/sponsors/badge.svg)](https://opencollective.com/nest#sponsor)-->
+## Proposito
 
-## Description
+Este backend centraliza la autenticacion, la administracion de domiciliarios y comercios, la asignacion de pedidos y las notificaciones Push. Debe mantenerse seguro, escalable y compatible con el frontend movil y web.
 
-[Nest](https://github.com/nestjs/nest) framework TypeScript starter repository.
+## Tecnologias
 
-## Project setup
+- NestJS 11 y TypeScript
+- PostgreSQL alojado en Supabase Cloud
+- TypeORM con patron Repository
+- JWT con Passport y Guards de NestJS
+- DTOs con `class-validator`
+- Nodemailer para invitaciones por correo
+- Web Push con VAPID
+
+## Instalacion
 
 ```bash
-$ pnpm install
+pnpm install
 ```
 
-## Compile and run the project
+Configura las variables de entorno requeridas antes de iniciar la aplicacion:
+
+- `NODE_ENV`, `PORT`
+- `DATABASE_HOST`, `DATABASE_PORT`, `DATABASE_USERNAME`, `DATABASE_PASSWORD`, `DATABASE_NAME`
+- `JWT_SECRET`, `JWT_EXPIRATION`
+- `FRONTEND_URL`
+- `SMTP_HOST`, `SMTP_PORT`, `SMTP_USER`, `SMTP_PASS`, `SMTP_SECURE`, `EMAIL_FROM`
+- `WEB_PUSH_PUBLIC_KEY`, `WEB_PUSH_PRIVATE_KEY`, `WEB_PUSH_SUBJECT`
+- `USE_DEEP_LINK`, `APP_SCHEME`
+
+## Ejecucion
 
 ```bash
-# development
-$ pnpm run start
-
-# watch mode
-$ pnpm run start:dev
-
-# production mode
-$ pnpm run start:prod
+pnpm run start:dev
 ```
 
-## Run tests
+La API escucha en `0.0.0.0`, usa el puerto configurado y expone sus rutas bajo `/api/v1`.
+
+## Arquitectura
+
+El codigo se organiza por modulos dentro de `src/modules`:
+
+- `auth`: registro, login JWT y confirmacion de domiciliarios.
+- `usuarios`: administradores, clientes y domiciliarios.
+- `comercios`: administracion y busqueda de comercios.
+- `pedidos`: asignacion, estados e historial de domicilios.
+- `notifications`: suscripciones y notificaciones Web Push.
+
+El acceso a datos se implementa mediante repositorios TypeORM inyectables. Los controladores deben permanecer enfocados en HTTP y delegar la logica de negocio a los servicios.
+
+## Reglas de negocio
+
+### Autenticacion
+
+- Las credenciales de acceso son correo y contrasena.
+- Las contrasenas deben tener al menos 8 caracteres.
+- Los endpoints protegidos usan JWT y, cuando corresponda, `RolesGuard`.
+- Un domiciliario no puede iniciar sesion hasta confirmar su cuenta.
+
+### Domiciliarios
+
+1. Un administrador crea el domiciliario con nombre y correo.
+2. El backend genera una credencial temporal y un token con vigencia de 24 horas.
+3. El domiciliario recibe un enlace para establecer su contrasena.
+4. La cuenta queda confirmada al establecer la nueva contrasena.
+5. Al asignarle un pedido, el backend intenta enviar una notificacion Push.
+6. Un fallo de Push nunca debe impedir la creacion del pedido.
+
+### Pedidos
+
+Los estados disponibles son:
+
+- `EN_PROCESO`
+- `HECHO`
+- `CANCELADO`
+
+Las consultas diarias e historicas usan la zona horaria `America/Bogota`.
+
+### CORS
+
+Los origenes permitidos se administran en `src/main.ts`. Deben contemplar el dominio configurado en `FRONTEND_URL`, desarrollo local, dispositivos de la red `192.168.x.x` y Expo cuando siga siendo necesario.
+
+## Patrones de desarrollo
+
+### Inyeccion de dependencias
+
+- Los servicios y repositorios usan `@Injectable()`.
+- Las dependencias se reciben mediante el constructor.
+- Los repositorios personalizados extienden `Repository<Entidad>` e inyectan `DataSource`.
+
+### DTOs
+
+- Toda entrada HTTP debe usar un DTO.
+- Los DTOs usan decoradores de `class-validator`.
+- Los mensajes de validacion deben escribirse en espanol.
+- No se deben aceptar propiedades no declaradas en el DTO.
+
+### Autorizacion
+
+- Usa `JwtAuthGuard` para rutas autenticadas.
+- Usa `RolesGuard` y `@Roles(...)` para permisos por rol.
+- Usa `@CurrentUser()` o el usuario validado por Passport para obtener la identidad autenticada.
+
+### Respuestas y errores
+
+- Las respuestas exitosas se normalizan con `TransformInterceptor`.
+- Los errores se normalizan con `HttpExceptionFilter`.
+- Usa excepciones HTTP de NestJS en lugar de respuestas de error manuales.
+
+## Convencion Git
+
+Todos los commits deben seguir Conventional Commits con uno de estos prefijos:
+
+- `feat:` para una funcionalidad nueva.
+- `fix:` para una correccion de comportamiento o seguridad.
+- `chore:` para mantenimiento, configuracion o documentacion sin cambio funcional.
+
+Ejemplos:
+
+```text
+feat: add delivery assignment notifications
+fix: reject unconfirmed delivery users at login
+chore: consolidate project documentation
+```
+
+Antes de hacer `push`, los cambios deben estar incluidos en commits que respeten esta convencion.
+
+## Validacion
 
 ```bash
-# unit tests
-$ pnpm run test
-
-# e2e tests
-$ pnpm run test:e2e
-
-# test coverage
-$ pnpm run test:cov
+pnpm run build
+pnpm run test
+pnpm run test:e2e
 ```
 
-## Deployment
-
-When you're ready to deploy your NestJS application to production, there are some key steps you can take to ensure it runs as efficiently as possible. Check out the [deployment documentation](https://docs.nestjs.com/deployment) for more information.
-
-If you are looking for a cloud-based platform to deploy your NestJS application, check out [Mau](https://mau.nestjs.com), our official platform for deploying NestJS applications on AWS. Mau makes deployment straightforward and fast, requiring just a few simple steps:
-
-```bash
-$ pnpm install -g @nestjs/mau
-$ mau deploy
-```
-
-With Mau, you can deploy your application in just a few clicks, allowing you to focus on building features rather than managing infrastructure.
-
-## Resources
-
-Check out a few resources that may come in handy when working with NestJS:
-
-- Visit the [NestJS Documentation](https://docs.nestjs.com) to learn more about the framework.
-- For questions and support, please visit our [Discord channel](https://discord.gg/G7Qnnhy).
-- To dive deeper and get more hands-on experience, check out our official video [courses](https://courses.nestjs.com/).
-- Deploy your application to AWS with the help of [NestJS Mau](https://mau.nestjs.com) in just a few clicks.
-- Visualize your application graph and interact with the NestJS application in real-time using [NestJS Devtools](https://devtools.nestjs.com).
-- Need help with your project (part-time to full-time)? Check out our official [enterprise support](https://enterprise.nestjs.com).
-- To stay in the loop and get updates, follow us on [X](https://x.com/nestframework) and [LinkedIn](https://linkedin.com/company/nestjs).
-- Looking for a job, or have a job to offer? Check out our official [Jobs board](https://jobs.nestjs.com).
-
-## Support
-
-Nest is an MIT-licensed open source project. It can grow thanks to the sponsors and support by the amazing backers. If you'd like to join them, please [read more here](https://docs.nestjs.com/support).
-
-## Stay in touch
-
-- Author - [Kamil Myśliwiec](https://twitter.com/kammysliwiec)
-- Website - [https://nestjs.com](https://nestjs.com/)
-- Twitter - [@nestframework](https://twitter.com/nestframework)
-
-## License
-
-Nest is [MIT licensed](https://github.com/nestjs/nest/blob/master/LICENSE).
+La prueba e2e requiere acceso a PostgreSQL/Supabase. Si falla por conexion dentro de un entorno restringido, debe repetirse con acceso de red antes de atribuir el fallo a la aplicacion.

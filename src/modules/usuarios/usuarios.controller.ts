@@ -80,7 +80,6 @@ export class DomiciliariosPublicController {
   remove(@Param('id', ParseUUIDPipe) id: string) {
     return this.usuariosService.remove(id);
   }
-
 }
 
 @Controller('users')
@@ -98,9 +97,9 @@ export class UsersPublicController {
   }
 
   @Get('dashboard-summary')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(Rol.ADMIN)
   getDashboardSummar() {
-    return this.usuariosService.getDashboardSummary()
+    return this.usuariosService.getDashboardSummary();
   }
-
 }
-

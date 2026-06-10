@@ -10,7 +10,7 @@ import { UsuariosRepository } from './repositories/usuarios.repository';
 import { CreateUsuarioDto } from './dto/create-usuario.dto';
 import { CreateDomiciliarioDto } from './dto/create-domiciliario.dto';
 import { UpdateUsuarioDto } from './dto/update-usuario.dto';
-import { EmailService } from 'src/common/email/email.service';
+import { EmailService } from '../../common/email/email.service';
 import { Usuario } from './entities/usuario.entity';
 import { Pedido } from '../pedidos/entities/pedido.entity';
 import { Comercio } from '../comercios/entities/comercio.entity';
@@ -25,8 +25,8 @@ export class UsuariosService {
     private readonly pedidosRepository: Repository<Pedido>,
     @InjectRepository(Comercio)
     private readonly comerciosRepository: Repository<Comercio>,
-    private readonly emailService: EmailService
-  ) { }
+    private readonly emailService: EmailService,
+  ) {}
 
   async create(createUsuarioDto: CreateUsuarioDto): Promise<Usuario> {
     const { email, password, ...rest } = createUsuarioDto;
@@ -78,7 +78,10 @@ export class UsuariosService {
     return usuario;
   }
 
-  async update(id: string, updateUsuarioDto: UpdateUsuarioDto): Promise<Usuario> {
+  async update(
+    id: string,
+    updateUsuarioDto: UpdateUsuarioDto,
+  ): Promise<Usuario> {
     const usuario = await this.findOne(id);
     Object.assign(usuario, updateUsuarioDto);
     return this.usuariosRepository.save(usuario);
@@ -99,7 +102,7 @@ export class UsuariosService {
   async getAdminStatus() {
     const admin = await this.usuariosRepository.findOne({
       where: { rol: Rol.ADMIN },
-      order: { createdAt: "ASC" },
+      order: { createdAt: 'ASC' },
     });
 
     return { hasAdmin: !!admin, adminName: admin?.nombre ?? null };
@@ -112,13 +115,18 @@ export class UsuariosService {
       throw new ConflictException('Ya existe un administrador');
     }
 
-    const existingUser = await this.usuariosRepository.existsByEmail(createUsuarioDto.email);
+    const existingUser = await this.usuariosRepository.existsByEmail(
+      createUsuarioDto.email,
+    );
     if (existingUser) {
       throw new ConflictException('El email ya está registrado');
     }
 
     const saltRounds = 10;
-    const hashedPassword = await bcrypt.hash(createUsuarioDto.password, saltRounds);
+    const hashedPassword = await bcrypt.hash(
+      createUsuarioDto.password,
+      saltRounds,
+    );
 
     const admin = this.usuariosRepository.create({
       nombre: createUsuarioDto.nombre,
@@ -131,19 +139,19 @@ export class UsuariosService {
   }
 
   async getDashboardSummary() {
-    const totalPedidos = await this.pedidosRepository.count()
+    const totalPedidos = await this.pedidosRepository.count();
 
     const totalDomiciliarios = await this.usuariosRepository.count({
-      where: { rol: Rol.DOMICILIARIO }
-    })
+      where: { rol: Rol.DOMICILIARIO },
+    });
 
-    const totalComercios = await this.comerciosRepository.count()
+    const totalComercios = await this.comerciosRepository.count();
 
     return {
       totalPedidos,
       totalDomiciliarios,
-      totalComercios
-    }
+      totalComercios,
+    };
   }
 
   private async hashPassword(plain: string): Promise<string> {
@@ -158,7 +166,9 @@ export class UsuariosService {
   async createDomiciliario(dto: CreateDomiciliarioDto): Promise<Usuario> {
     const { nombre, email } = dto;
 
-    const existente = await this.usuariosRepository.findOne({ where: { email } });
+    const existente = await this.usuariosRepository.findOne({
+      where: { email },
+    });
     if (existente) {
       throw new ConflictException('Ya existe un usuario con ese correo');
     }
@@ -192,7 +202,9 @@ export class UsuariosService {
     return guardado;
   }
 
-  async findAllDomiciliarios(): Promise<Pick<Usuario, 'id' | 'nombre' | 'email'>[]> {
+  async findAllDomiciliarios(): Promise<
+    Pick<Usuario, 'id' | 'nombre' | 'email'>[]
+  > {
     const domiciliarios = await this.usuariosRepository.find({
       where: { rol: Rol.DOMICILIARIO },
       select: ['id', 'nombre', 'email'],
@@ -228,5 +240,4 @@ export class UsuariosService {
     usuario.email_confirmacion_expira = null;
     await this.usuariosRepository.save(usuario);
   }
-
 }

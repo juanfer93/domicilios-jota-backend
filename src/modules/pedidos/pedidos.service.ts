@@ -1,19 +1,19 @@
-import {
-  Injectable,
-  NotFoundException,
-} from '@nestjs/common';
+import { Injectable, Logger, NotFoundException } from '@nestjs/common';
 import { PedidosRepository } from './repositories/pedidos.repository';
 import { CreatePedidoAdminDto } from './dto/create-pedido-admin.dto';
 import { FilterPedidosDto } from './dto/filter-pedidos.dto';
 import { Pedido } from './entities/pedido.entity';
 import { PedidoEstado } from './enums/estado-pedido.enum';
+import { NotificationsService } from '../notifications/notifications.service';
 
 @Injectable()
 export class PedidosService {
+  private readonly logger = new Logger(PedidosService.name);
+
   constructor(
     private readonly pedidosRepository: PedidosRepository,
-  ) { }
-
+    private readonly notificationsService: NotificationsService,
+  ) {}
 
   async findAll(filters: FilterPedidosDto): Promise<Pedido[]> {
     return this.pedidosRepository.findWithFilters(filters);
@@ -35,22 +35,21 @@ export class PedidosService {
 
   async getPedidosDelDia() {
     return this.pedidosRepository
-      .createQueryBuilder("p")
-      .leftJoinAndSelect("p.usuario", "u")
-      .leftJoinAndSelect("p.comercio", "c")
-      .where(`
+      .createQueryBuilder('p')
+      .leftJoinAndSelect('p.usuario', 'u')
+      .leftJoinAndSelect('p.comercio', 'c')
+      .where(
+        `
       p.created_at >= (((now() AT TIME ZONE 'America/Bogota')::date) AT TIME ZONE 'America/Bogota')
       AND
       p.created_at <  ((((now() AT TIME ZONE 'America/Bogota')::date) + INTERVAL '1 day') AT TIME ZONE 'America/Bogota')
-    `)
-      .orderBy("p.created_at", "DESC")
+    `,
+      )
+      .orderBy('p.created_at', 'DESC')
       .getMany();
   }
 
-  async createPedidoByAdmin(
-    dto: CreatePedidoAdminDto,
-    adminId: string,
-  ) {
+  async createPedidoByAdmin(dto: CreatePedidoAdminDto, adminId: string) {
     const pedido = this.pedidosRepository.create({
       usuarioId: dto.usuarioId,
       comercioId: dto.comercioId,
@@ -62,33 +61,46 @@ export class PedidosService {
       assignedAt: new Date(),
     });
 
-    return this.pedidosRepository.save(pedido);
+    const pedidoGuardado = await this.pedidosRepository.save(pedido);
+
+    void this.notificationsService
+      .notifyUser(dto.usuarioId, {
+        title: 'Nuevo domicilio asignado',
+        body: 'Tienes un nuevo servicio en curso.',
+        url: '/profile-delivery/current-delivery',
+        pedidoId: pedidoGuardado.id,
+      })
+      .catch((error: unknown) => {
+        const message = error instanceof Error ? error.message : String(error);
+        this.logger.error(
+          `No se pudo enviar la notificación del pedido ${pedidoGuardado.id}: ${message}`,
+        );
+      });
+
+    return pedidoGuardado;
   }
 
-  async updateEstadoPedido(
-    pedidoId: string,
-    estado: PedidoEstado,
-  ) {
+  async updateEstadoPedido(pedidoId: string, estado: PedidoEstado) {
     await this.pedidosRepository.update(pedidoId, { estado });
     return this.pedidosRepository.findOne({ where: { id: pedidoId } });
   }
 
   async getHistorialByDate(date: string) {
-    const dateOnly = (date ?? "").slice(0, 10);
+    const dateOnly = (date ?? '').slice(0, 10);
 
     return this.pedidosRepository
-      .createQueryBuilder("p")
-      .leftJoinAndSelect("p.usuario", "u")
-      .leftJoinAndSelect("p.comercio", "c")
+      .createQueryBuilder('p')
+      .leftJoinAndSelect('p.usuario', 'u')
+      .leftJoinAndSelect('p.comercio', 'c')
       .where(
         `
       p.created_at >= ((:dateOnly::date) AT TIME ZONE 'America/Bogota')
       AND
       p.created_at <  (((:dateOnly::date) + INTERVAL '1 day') AT TIME ZONE 'America/Bogota')
       `,
-        { dateOnly }
+        { dateOnly },
       )
-      .orderBy("p.created_at", "DESC")
+      .orderBy('p.created_at', 'DESC')
       .getMany();
   }
 
@@ -110,5 +122,4 @@ export class PedidosService {
     const pedido = await this.findOne(id);
     await this.pedidosRepository.remove(pedido);
   }
-
 }
