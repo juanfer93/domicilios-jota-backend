@@ -10,17 +10,20 @@ import { Pedido } from '../../pedidos/entities/pedido.entity';
 @Entity('comercios')
 export class Comercio {
   @PrimaryGeneratedColumn('uuid')
-  id: string;
+  id!: string;
 
   @Column({ type: 'varchar', length: 150 })
-  nombre: string;
+  nombre!: string;
 
   @Column({ type: 'text' })
-  direccion: string;
+  direccion!: string;
+
+  @Column({ type: 'varchar', length: 20 })
+  telefono!: string;
 
   @CreateDateColumn({ name: 'created_at', type: 'timestamptz' })
-  createdAt: Date;
+  createdAt!: Date;
 
   @OneToMany(() => Pedido, (pedido) => pedido.comercio)
-  pedidos: Pedido[];
+  pedidos!: Pedido[];
 }
