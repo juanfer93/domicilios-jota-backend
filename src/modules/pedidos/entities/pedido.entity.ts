@@ -127,5 +127,4 @@ export class Pedido {
     nullable: true,
   })
   detallesAdicionales?: string;
-
-}}
+}
