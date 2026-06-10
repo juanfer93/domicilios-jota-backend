@@ -61,6 +61,8 @@ export class PedidosService {
       clienteNombre: dto.clienteNombre,
       clienteTelefono: dto.clienteTelefono,
       domiciliarioId: dto.domiciliarioId,
+      direccionEntrega: dto.direccionEntrega,
+      detallesAdicionales: dto.detallesAdicionales,
       estado: PedidoEstado.EN_PROCESO,
       assignedBy: adminId,
       assignedAt: new Date(),

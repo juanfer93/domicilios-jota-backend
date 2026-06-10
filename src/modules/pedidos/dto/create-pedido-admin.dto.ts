@@ -1,4 +1,4 @@
-import { IsNotEmpty, IsNumber, IsOptional, IsPositive, IsString, IsUUID } from 'class-validator';
+import { IsNotEmpty, IsNumber, IsOptional, IsPositive, IsString, IsUUID, ValidateIf } from 'class-validator';
 
 export class CreatePedidoAdminDto {
   @IsUUID()
@@ -38,6 +38,15 @@ export class CreatePedidoAdminDto {
   clienteTelefono?: string;
 
   @IsOptional()
+  @ValidateIf((o) => o.domiciliarioId !== null)
   @IsUUID()
-  domiciliarioId?: string;
+  domiciliarioId?: string | null;
+
+  @IsOptional()
+  @IsString()
+  direccionEntrega?: string;
+
+  @IsOptional()
+  @IsString()
+  detallesAdicionales?: string;
 }

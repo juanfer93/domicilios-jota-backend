@@ -113,4 +113,19 @@ export class Pedido {
   })
   domiciliarioId?: string | null;
 
-}
+  @Column({
+    name: 'direccion_entrega',
+    type: 'varchar',
+    length: 255,
+    nullable: true,
+  })
+  direccionEntrega?: string;
+
+  @Column({
+    name: 'detalles_adicionales',
+    type: 'text',
+    nullable: true,
+  })
+  detallesAdicionales?: string;
+
+}}
