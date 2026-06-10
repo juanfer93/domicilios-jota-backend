@@ -71,6 +71,46 @@ export class Pedido {
     length: 255,
     nullable: false,
   })
-  direccionDestino: string;
+  direccionDestino!: string;
+
+  @Column({
+    name: 'direccion_recogida',
+    type: 'varchar',
+    length: 255,
+    nullable: true,
+  })
+  direccionRecogida?: string;
+
+  @Column({
+    name: 'valor_pedido',
+    type: 'decimal',
+    precision: 10,
+    scale: 2,
+    nullable: true,
+  })
+  valorPedido?: number;
+
+  @Column({
+    name: 'cliente_nombre',
+    type: 'varchar',
+    length: 150,
+    nullable: true,
+  })
+  clienteNombre?: string;
+
+  @Column({
+    name: 'cliente_telefono',
+    type: 'varchar',
+    length: 20,
+    nullable: true,
+  })
+  clienteTelefono?: string;
+
+  @Column({
+    name: 'domiciliario_id',
+    type: 'uuid',
+    nullable: true,
+  })
+  domiciliarioId?: string | null;
 
 }

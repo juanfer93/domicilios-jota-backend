@@ -3,15 +3,15 @@ import { IsNotEmpty, IsNumber, IsOptional, IsPositive, IsString, IsUUID } from '
 export class CreatePedidoAdminDto {
   @IsUUID()
   @IsNotEmpty()
-  usuarioId: string;
+  usuarioId!: string;
 
   @IsUUID()
   @IsNotEmpty()
-  comercioId: string;
+  comercioId!: string;
 
   @IsNumber()
   @IsPositive()
-  valorFinal: number;
+  valorFinal!: number;
 
   @IsOptional()
   @IsNumber()
@@ -19,5 +19,25 @@ export class CreatePedidoAdminDto {
 
   @IsString()
   @IsNotEmpty()
-  direccionDestino: string;
+  direccionDestino!: string;
+
+  @IsOptional()
+  @IsString()
+  direccionRecogida?: string;
+
+  @IsOptional()
+  @IsNumber()
+  valorPedido?: number;
+
+  @IsOptional()
+  @IsString()
+  clienteNombre?: string;
+
+  @IsOptional()
+  @IsString()
+  clienteTelefono?: string;
+
+  @IsOptional()
+  @IsUUID()
+  domiciliarioId?: string;
 }
