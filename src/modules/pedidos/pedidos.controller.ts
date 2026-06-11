@@ -25,7 +25,12 @@ export class PedidosController {
   constructor(private readonly pedidosService: PedidosService) {}
 
   @Get('hoy')
-  getPedidosDelDia() {
+  @Roles(Rol.ADMIN, Rol.DOMICILIARIO)
+  getPedidosDelDia(@Req() req: any) {
+    if (req.user.rol === Rol.DOMICILIARIO) {
+      const today = new Date().toISOString().slice(0, 10);
+      return this.pedidosService.getHistorialDomiciliarioByDate(today, req.user.id);
+    }
     return this.pedidosService.getPedidosDelDia();
   }
 
@@ -35,12 +40,17 @@ export class PedidosController {
   }
 
   @Patch(':id/estado')
+  @Roles(Rol.ADMIN, Rol.DOMICILIARIO)
   updateEstado(@Param('id') id: string, @Body() dto: UpdatePedidoEstadoDto) {
     return this.pedidosService.updateEstadoPedido(id, dto.estado);
   }
 
   @Get('history')
-  getHistorial(@Query('date') date: string) {
+  @Roles(Rol.ADMIN, Rol.DOMICILIARIO)
+  getHistorial(@Query('date') date: string, @Req() req: any) {
+    if (req.user.rol === Rol.DOMICILIARIO) {
+      return this.pedidosService.getHistorialDomiciliarioByDate(date, req.user.id);
+    }
     return this.pedidosService.getHistorialByDate(date);
   }
 
@@ -59,5 +69,11 @@ export class PedidosController {
     }
 
     return pedido;
+  }
+
+  @Get('domiciliarios/history')
+  @Roles(Rol.DOMICILIARIO)
+  getHistorialDomiciliario(@Query('date') date: string, @Req() req: any) {
+    return this.pedidosService.getHistorialDomiciliarioByDate(date, req.user.id);
   }
 }

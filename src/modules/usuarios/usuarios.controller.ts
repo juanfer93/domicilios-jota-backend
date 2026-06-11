@@ -49,7 +49,7 @@ export class DomiciliariosPublicController {
   }
 
   @Get('domiciliarios')
-  @Roles(Rol.ADMIN)
+  @Roles(Rol.ADMIN, Rol.DOMICILIARIO)
   findAllDomiciliarios() {
     return this.usuariosService.findAllDomiciliarios();
   }

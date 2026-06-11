@@ -88,7 +88,11 @@ export class PedidosService {
   }
 
   async updateEstadoPedido(pedidoId: string, estado: PedidoEstado) {
-    await this.pedidosRepository.update(pedidoId, { estado });
+    if (estado === PedidoEstado.HECHO || estado === PedidoEstado.CANCELADO) {
+      await this.pedidosRepository.update(pedidoId, { estado, createdAt: new Date() });
+    } else {
+      await this.pedidosRepository.update(pedidoId, { estado });
+    }
     return this.pedidosRepository.findOne({ where: { id: pedidoId } });
   }
 
@@ -106,6 +110,26 @@ export class PedidosService {
       p.created_at <  (((:dateOnly::date) + INTERVAL '1 day') AT TIME ZONE 'America/Bogota')
       `,
         { dateOnly },
+      )
+      .orderBy('p.created_at', 'DESC')
+      .getMany();
+  }
+
+  async getHistorialDomiciliarioByDate(date: string, usuarioId: string) {
+    const dateOnly = (date ?? '').slice(0, 10);
+
+    return this.pedidosRepository
+      .createQueryBuilder('p')
+      .leftJoinAndSelect('p.usuario', 'u')
+      .leftJoinAndSelect('p.comercio', 'c')
+      .where(
+        `
+      p.created_at >= ((:dateOnly::date) AT TIME ZONE 'America/Bogota')
+      AND
+      p.created_at <  (((:dateOnly::date) + INTERVAL '1 day') AT TIME ZONE 'America/Bogota')
+      AND p.usuario_id = :usuarioId
+      `,
+        { dateOnly, usuarioId },
       )
       .orderBy('p.created_at', 'DESC')
       .getMany();
