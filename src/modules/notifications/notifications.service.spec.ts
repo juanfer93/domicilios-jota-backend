@@ -281,6 +281,9 @@ describe('NotificationsService', () => {
           tipo: 'PEDIDO_ASIGNADO',
           destinatarioId: 'domi-uuid',
           pedidoId: 'pedido-uuid',
+          datos: expect.objectContaining({
+            url: '/profile/current-delivery',
+          }),
         }),
       );
     });
@@ -306,6 +309,9 @@ describe('NotificationsService', () => {
         expect.objectContaining({
           tipo: 'PEDIDO_ESTADO_ACTUALIZADO',
           destinatarioId: 'admin-uuid',
+          datos: expect.objectContaining({
+            url: '/delivery?pedidoId=pedido-uuid',
+          }),
         }),
       );
     });

@@ -8,7 +8,6 @@ import {
   UseGuards,
   Query,
   Req,
-  NotFoundException,
 } from '@nestjs/common';
 import { PedidosService } from './pedidos.service';
 import { CreatePedidoAdminDto } from './dto/create-pedido-admin.dto';
@@ -68,21 +67,16 @@ export class PedidosController {
     return this.pedidosService.getHistorialByDate(date);
   }
 
+  @Get('history/all')
+  @Roles(Rol.ADMIN)
+  getAllHistory(@Query('search') search?: string) {
+    return this.pedidosService.getAllHistory(search);
+  }
+
   @Get('domiciliarios/current')
   @Roles(Rol.DOMICILIARIO)
-  async getCurrentForDomiciliario(@Req() req: any) {
-    const userId = req.user.id;
-
-    const pedido =
-      await this.pedidosService.getCurrentPedidoForDomiciliario(userId);
-
-    if (!pedido) {
-      throw new NotFoundException(
-        'No hay servicio en curso para este domiciliario.',
-      );
-    }
-
-    return pedido;
+  getCurrentForDomiciliario(@Req() req: any) {
+    return this.pedidosService.getCurrentPedidoForDomiciliario(req.user.id);
   }
 
   @Get('domiciliarios/history')

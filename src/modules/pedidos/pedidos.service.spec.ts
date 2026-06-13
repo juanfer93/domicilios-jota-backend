@@ -36,6 +36,7 @@ describe('PedidosService', () => {
     findByIdWithRelations: jest.fn(),
     findWithFilters: jest.fn(),
     findByUsuario: jest.fn(),
+    findAllHistory: jest.fn(),
   };
 
   const notificationsService = {
@@ -234,6 +235,24 @@ describe('PedidosService', () => {
         'pedido-uuid',
         expect.not.objectContaining({ createdAt: expect.anything() }),
       );
+    });
+  });
+
+  describe('getAllHistory', () => {
+    it('busca por nombre de comercio o domiciliario', async () => {
+      const pedidos = [makePedido()];
+      pedidosRepository.findAllHistory.mockResolvedValue(pedidos);
+
+      await expect(service.getAllHistory('  Juan  ')).resolves.toEqual(pedidos);
+      expect(pedidosRepository.findAllHistory).toHaveBeenCalledWith('Juan');
+    });
+
+    it('consulta todo el historial cuando no hay busqueda', async () => {
+      pedidosRepository.findAllHistory.mockResolvedValue([]);
+
+      await service.getAllHistory('   ');
+
+      expect(pedidosRepository.findAllHistory).toHaveBeenCalledWith(undefined);
     });
   });
 });

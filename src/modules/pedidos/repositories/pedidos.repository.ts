@@ -43,6 +43,21 @@ export class PedidosRepository extends Repository<Pedido> {
     });
   }
 
+  async findAllHistory(search?: string): Promise<Pedido[]> {
+    const queryBuilder = this.createQueryBuilder('pedido')
+      .leftJoinAndSelect('pedido.usuario', 'usuario')
+      .leftJoinAndSelect('pedido.comercio', 'comercio');
+
+    if (search) {
+      queryBuilder.andWhere(
+        '(LOWER(usuario.nombre) LIKE LOWER(:search) OR LOWER(comercio.nombre) LIKE LOWER(:search))',
+        { search: `%${search}%` },
+      );
+    }
+
+    return queryBuilder.orderBy('pedido.createdAt', 'DESC').getMany();
+  }
+
   async findByIdWithRelations(id: string): Promise<Pedido | null> {
     return this.findOne({
       where: { id },

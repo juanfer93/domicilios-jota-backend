@@ -1,6 +1,17 @@
 import { Injectable, Logger } from '@nestjs/common';
 import * as nodemailer from 'nodemailer';
 
+export function buildDomiciliarioInvitationLinks(token: string) {
+  const frontendUrl = (process.env.FRONTEND_URL || 'http://192.168.1.26:8081').replace(/\/$/, '');
+  const appScheme = process.env.APP_SCHEME || 'jotadeliverymobile';
+  const path = `auth/domiciliario/set-password?token=${encodeURIComponent(token)}`;
+
+  return {
+    webUrl: `${frontendUrl}/${path}`,
+    androidUrl: `${appScheme}://${path}`,
+  };
+}
+
 @Injectable()
 export class EmailService {
   private readonly logger = new Logger(EmailService.name);
@@ -40,14 +51,7 @@ export class EmailService {
     passwordTemporal: string,
     token: string,
   ) {
-    const frontendUrl = process.env.FRONTEND_URL || 'http://192.168.1.26:8081';
-
-    // Decidir si usamos deep link (app) o URL web
-    const useDeepLink = process.env.USE_DEEP_LINK === 'true';
-
-    const urlConfirmacion = useDeepLink
-      ? `${process.env.APP_SCHEME}://auth/domiciliario/set-password?token=${token}`
-      : `${process.env.FRONTEND_URL}/auth/domiciliario/set-password?token=${token}`;
+    const { webUrl, androidUrl } = buildDomiciliarioInvitationLinks(token);
     const subject = 'Invitación como domiciliario';
     const text = `
 Hola ${nombre},
@@ -57,7 +61,8 @@ Has sido registrado como domiciliario en la plataforma de domicilios.
 Tu contraseña temporal es: ${passwordTemporal}
 
 Por favor haz clic en el siguiente enlace para crear tu nueva contraseña:
-${urlConfirmacion}
+Android: ${androidUrl}
+Web: ${webUrl}
 
 Si tú no esperabas este correo, puedes ignorarlo.
 
@@ -72,20 +77,27 @@ Saludos.
         Por favor haz clic en el siguiente botón o enlace para crear tu nueva contraseña:
       </p>
       <p>
-        <a href="${urlConfirmacion}" 
+        <a href="${androidUrl}"
            style="display:inline-block;padding:10px 16px;background:#2563eb;color:#fff;
                   text-decoration:none;border-radius:4px;">
-          Crear contraseña
+          Abrir app Android
+        </a>
+      </p>
+      <p>
+        <a href="${webUrl}"
+           style="display:inline-block;padding:10px 16px;background:#174A8B;color:#fff;
+                  text-decoration:none;border-radius:4px;">
+          Continuar en la web
         </a>
       </p>
       <p>O copia y pega este enlace en tu navegador:</p>
-      <p><a href="${urlConfirmacion}">${urlConfirmacion}</a></p>
+      <p><a href="${webUrl}">${webUrl}</a></p>
       <p>Si tú no esperabas este correo, puedes ignorarlo.</p>
       <p>Saludos.</p>
     `;
 
     this.logger.log(
-      `Preparando email de invitación para ${email} con link ${urlConfirmacion}`,
+      `Preparando email de invitacion para ${email} con enlaces web y Android`,
     );
 
     if (!this.transporter) {

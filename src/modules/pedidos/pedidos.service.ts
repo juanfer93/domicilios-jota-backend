@@ -183,6 +183,11 @@ export class PedidosService {
       .getMany();
   }
 
+  async getAllHistory(search?: string) {
+    const normalizedSearch = search?.trim();
+    return this.pedidosRepository.findAllHistory(normalizedSearch || undefined);
+  }
+
   async getHistorialDomiciliarioByDate(date: string, usuarioId: string) {
     const { start, end } = this.getColombiaRange(date);
 

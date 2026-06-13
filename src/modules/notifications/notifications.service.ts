@@ -194,7 +194,7 @@ export class NotificationsService {
       pedidoId: params.pedidoId,
       title: titulo,
       body: cuerpo,
-      url: '/profile-delivery/current-delivery',
+      url: '/profile/current-delivery',
       domiciliarioId: params.domiciliarioId,
       domiciliarioNombre: params.domiciliarioNombre,
     };
@@ -231,6 +231,7 @@ export class NotificationsService {
       body: cuerpo,
       estado: params.estado,
       domiciliarioNombre: params.domiciliarioNombre,
+      url: `/delivery?pedidoId=${params.pedidoId}`,
     };
 
     await this.notifyUser(params.adminId, payload, {

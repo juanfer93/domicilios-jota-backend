@@ -30,7 +30,7 @@ Configura las variables de entorno requeridas antes de iniciar la aplicacion:
 - `FRONTEND_URL`
 - `SMTP_HOST`, `SMTP_PORT`, `SMTP_USER`, `SMTP_PASS`, `SMTP_SECURE`, `EMAIL_FROM`
 - `WEB_PUSH_PUBLIC_KEY`, `WEB_PUSH_PRIVATE_KEY`, `WEB_PUSH_SUBJECT`
-- `USE_DEEP_LINK`, `APP_SCHEME`
+- `APP_SCHEME` (por defecto `jotadeliverymobile`)
 
 ## Ejecucion y cambio de entorno
 
@@ -112,6 +112,7 @@ El acceso a datos se implementa mediante repositorios TypeORM inyectables. Los c
 1. Un administrador crea el domiciliario con nombre y correo.
 2. El backend genera una credencial temporal y un token con vigencia de 24 horas.
 3. El domiciliario recibe un enlace para establecer su contrasena.
+   El correo incluye un enlace web y un deep link para abrir la app Android.
 4. La cuenta queda confirmada al establecer la nueva contrasena.
 5. Al asignarle un pedido, el backend intenta enviar una notificacion Push.
 6. Un fallo de Push nunca debe impedir la creacion del pedido.

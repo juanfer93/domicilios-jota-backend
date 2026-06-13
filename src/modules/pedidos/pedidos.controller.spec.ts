@@ -1,10 +1,10 @@
-import { NotFoundException } from '@nestjs/common';
 import { PedidosController } from './pedidos.controller';
 import { PedidosService } from './pedidos.service';
 
 describe('PedidosController', () => {
   const pedidosService = {
     getCurrentPedidoForDomiciliario: jest.fn(),
+    getAllHistory: jest.fn(),
   };
   let controller: PedidosController;
 
@@ -27,11 +27,20 @@ describe('PedidosController', () => {
     );
   });
 
-  it('conserva la respuesta 404 cuando no hay pedido en curso', async () => {
+  it('retorna null sin error cuando no hay pedido en curso', async () => {
     pedidosService.getCurrentPedidoForDomiciliario.mockResolvedValue(null);
 
     await expect(
       controller.getCurrentForDomiciliario({ user: { id: 'usuario-id' } }),
-    ).rejects.toThrow(NotFoundException);
+    ).resolves.toBeNull();
+  });
+
+  it('delega la busqueda del historial global', async () => {
+    pedidosService.getAllHistory.mockResolvedValue([{ id: 'pedido-id' }]);
+
+    await expect(controller.getAllHistory('comercio')).resolves.toEqual([
+      { id: 'pedido-id' },
+    ]);
+    expect(pedidosService.getAllHistory).toHaveBeenCalledWith('comercio');
   });
 });
