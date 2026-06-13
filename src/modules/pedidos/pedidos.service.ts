@@ -128,6 +128,16 @@ export class PedidosService {
       throw new NotFoundException(`Pedido con ID ${pedidoId} no encontrado`);
     }
 
+    if (
+      (pedido.estado === PedidoEstado.HECHO ||
+        pedido.estado === PedidoEstado.CANCELADO) &&
+      pedido.estado !== estado
+    ) {
+      throw new BadRequestException(
+        'No se puede cambiar el estado de un pedido finalizado.',
+      );
+    }
+
     // Validación de propietario para domiciliarios
     if (actor.rol === Rol.DOMICILIARIO && pedido.domiciliarioId !== actor.id) {
       throw new ForbiddenException(

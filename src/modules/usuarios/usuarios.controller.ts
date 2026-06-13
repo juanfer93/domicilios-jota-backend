@@ -8,6 +8,7 @@ import {
   Delete,
   UseGuards,
   ParseUUIDPipe,
+  Query,
 } from '@nestjs/common';
 import { UsuariosService } from './usuarios.service';
 import { CreateUsuarioDto } from './dto/create-usuario.dto';
@@ -53,6 +54,12 @@ export class DomiciliariosPublicController {
   @Roles(Rol.ADMIN, Rol.DOMICILIARIO)
   findAllDomiciliarios() {
     return this.usuariosService.findAllDomiciliarios();
+  }
+
+  @Get('domiciliarios/search')
+  @Roles(Rol.ADMIN)
+  searchDomiciliarios(@Query('nombre') nombre: string) {
+    return this.usuariosService.searchDomiciliarios(nombre || '');
   }
 
   @Delete('domiciliarios/:id')

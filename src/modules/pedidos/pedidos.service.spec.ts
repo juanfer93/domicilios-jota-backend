@@ -1,4 +1,4 @@
-import { ForbiddenException, NotFoundException } from '@nestjs/common';
+import { BadRequestException, ForbiddenException, NotFoundException } from '@nestjs/common';
 import { NotificationsService } from '../notifications/notifications.service';
 import { CreatePedidoAdminDto } from './dto/create-pedido-admin.dto';
 import { PedidoEstado } from './enums/estado-pedido.enum';
@@ -200,6 +200,21 @@ describe('PedidosService', () => {
           rol: Rol.ADMIN,
         }),
       ).rejects.toThrow(NotFoundException);
+    });
+
+    it('no permite reabrir un pedido finalizado', async () => {
+      pedidosRepository.findOne.mockResolvedValueOnce(
+        makePedido({ estado: PedidoEstado.HECHO }),
+      );
+
+      await expect(
+        service.updateEstadoPedido('pedido-uuid', PedidoEstado.EN_PROCESO, {
+          id: 'admin-uuid',
+          rol: Rol.ADMIN,
+        }),
+      ).rejects.toThrow(BadRequestException);
+
+      expect(pedidosRepository.update).not.toHaveBeenCalled();
     });
 
     it('NO modifica createdAt al terminar un pedido (bug corregido)', async () => {

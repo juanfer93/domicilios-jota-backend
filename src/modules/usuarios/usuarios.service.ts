@@ -215,6 +215,14 @@ export class UsuariosService {
     return domiciliarios;
   }
 
+  async searchDomiciliarios(
+    nombre: string,
+  ): Promise<
+    Pick<Usuario, 'id' | 'nombre' | 'email' | 'bloqueado' | 'createdAt'>[]
+  > {
+    return this.usuariosRepository.findDomiciliariosByNombre(nombre.trim());
+  }
+
   async removeDomiciliario(id: string): Promise<{ message: string }> {
     const domi = await this.usuariosRepository.findOne({
       where: { id, rol: Rol.DOMICILIARIO },

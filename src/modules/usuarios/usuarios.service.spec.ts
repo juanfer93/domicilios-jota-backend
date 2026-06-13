@@ -30,6 +30,7 @@ describe('UsuariosService - toggleBloqueo', () => {
     hasAdmin: jest.fn(),
     findByEmail: jest.fn(),
     findByIdWithPedidos: jest.fn(),
+    findDomiciliariosByNombre: jest.fn(),
     count: jest.fn(),
   };
 
@@ -89,5 +90,15 @@ describe('UsuariosService - toggleBloqueo', () => {
 
     expect(result[0]).toHaveProperty('bloqueado');
     expect(result[1].bloqueado).toBe(true);
+  });
+
+  it('busca domiciliarios por nombre normalizado', async () => {
+    const domiciliarios = [makeDomiciliario({ nombre: 'Juan Perez' })];
+    usuariosRepository.findDomiciliariosByNombre.mockResolvedValue(domiciliarios);
+
+    const result = await service.searchDomiciliarios('  juan  ');
+
+    expect(usuariosRepository.findDomiciliariosByNombre).toHaveBeenCalledWith('juan');
+    expect(result).toEqual(domiciliarios);
   });
 });
