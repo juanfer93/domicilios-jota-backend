@@ -5,6 +5,16 @@ import { ExpoTokensRepository } from './repositories/expo-tokens.repository';
 import { PushSubscriptionsRepository } from './repositories/push-subscriptions.repository';
 import { ConfigService } from '@nestjs/config';
 import { NotificationEntity } from './entities/notification.entity';
+import * as webpush from 'web-push';
+
+jest.mock('web-push', () => ({
+  setVapidDetails: jest.fn(),
+  sendNotification: jest.fn(),
+}));
+
+const sendWebPushMock = webpush.sendNotification as jest.MockedFunction<
+  typeof webpush.sendNotification
+>;
 
 const makeConfig = (overrides: Record<string, string> = {}) => ({
   get: jest.fn((key: string) => overrides[key] ?? undefined),
@@ -74,7 +84,9 @@ describe('NotificationsService', () => {
   describe('getWebPushPublicKey', () => {
     it('retorna la clave pública VAPID desde la config', () => {
       const svc = new NotificationsService(
-        makeConfig({ WEB_PUSH_PUBLIC_KEY: 'mi-clave-publica' }) as unknown as ConfigService,
+        makeConfig({
+          WEB_PUSH_PUBLIC_KEY: 'mi-clave-publica',
+        }) as unknown as ConfigService,
         pushRepo as unknown as PushSubscriptionsRepository,
         notificationsRepo as unknown as NotificationsRepository,
         expoTokensRepo as unknown as ExpoTokensRepository,
@@ -103,7 +115,10 @@ describe('NotificationsService', () => {
 
       const result = await service.markAsRead('notif-uuid', 'user-uuid');
 
-      expect(notificationsRepo.markAsRead).toHaveBeenCalledWith('notif-uuid', 'user-uuid');
+      expect(notificationsRepo.markAsRead).toHaveBeenCalledWith(
+        'notif-uuid',
+        'user-uuid',
+      );
       expect(result).toBe(notification);
     });
 
@@ -162,6 +177,89 @@ describe('NotificationsService', () => {
           }),
         }),
       ]);
+    });
+  });
+
+  describe('notifyUser multiplataforma', () => {
+    it('envia la misma notificacion a Web Push y Android para el usuario destino', async () => {
+      const originalFetch = global.fetch;
+      const fetchMock = jest.fn().mockResolvedValue({ ok: true });
+      global.fetch = fetchMock as unknown as typeof fetch;
+      sendWebPushMock.mockResolvedValue(
+        {} as Awaited<ReturnType<typeof webpush.sendNotification>>,
+      );
+
+      pushRepo.findByUser.mockResolvedValue([
+        {
+          endpoint: 'https://push.example/subscription',
+          expirationTime: null,
+          p256dh: 'web-p256dh',
+          auth: 'web-auth',
+        },
+      ]);
+      expoTokensRepo.findByUser.mockResolvedValue([
+        { token: 'ExponentPushToken[android-token]', platform: 'android' },
+      ]);
+
+      try {
+        const result = await service.notifyUser('destinatario-uuid', {
+          type: 'PEDIDO_ASIGNADO',
+          pedidoId: 'pedido-uuid',
+          title: 'Nuevo pedido asignado',
+          body: 'Tienes un nuevo servicio en curso.',
+        });
+
+        expect(result).toEqual({ ok: true, sent: 1 });
+      } finally {
+        global.fetch = originalFetch;
+      }
+
+      expect(pushRepo.findByUser).toHaveBeenCalledWith('destinatario-uuid');
+      expect(sendWebPushMock).toHaveBeenCalledWith(
+        expect.objectContaining({
+          endpoint: 'https://push.example/subscription',
+        }),
+        expect.stringContaining('pedido-uuid'),
+      );
+      expect(expoTokensRepo.findByUser).toHaveBeenCalledWith(
+        'destinatario-uuid',
+      );
+      expect(fetchMock).toHaveBeenCalledWith(
+        'https://exp.host/--/api/v2/push/send',
+        expect.objectContaining({ method: 'POST' }),
+      );
+    });
+
+    it('continua con Android cuando falla el envio Web Push', async () => {
+      const originalFetch = global.fetch;
+      const fetchMock = jest.fn().mockResolvedValue({ ok: true });
+      global.fetch = fetchMock as unknown as typeof fetch;
+      sendWebPushMock.mockRejectedValue(new Error('web push no disponible'));
+
+      pushRepo.findByUser.mockResolvedValue([
+        {
+          endpoint: 'https://push.example/subscription',
+          expirationTime: null,
+          p256dh: 'web-p256dh',
+          auth: 'web-auth',
+        },
+      ]);
+      expoTokensRepo.findByUser.mockResolvedValue([
+        { token: 'ExponentPushToken[android-token]', platform: 'android' },
+      ]);
+
+      try {
+        await expect(
+          service.notifyUser('destinatario-uuid', {
+            type: 'PEDIDO_ASIGNADO',
+            pedidoId: 'pedido-uuid',
+          }),
+        ).resolves.toEqual({ ok: true, sent: 1 });
+      } finally {
+        global.fetch = originalFetch;
+      }
+
+      expect(fetchMock).toHaveBeenCalledTimes(1);
     });
   });
 

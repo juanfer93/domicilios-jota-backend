@@ -8,9 +8,9 @@ export const databaseConfig = registerAs('database', () => ({
   password: process.env.DATABASE_PASSWORD,
   database: process.env.DATABASE_NAME,
   autoLoadEntities: true,
-  synchronize: process.env.NODE_ENV === 'development', 
-  
-  ssl: { 
-    rejectUnauthorized: false 
+  synchronize: process.env.DATABASE_SYNCHRONIZE === 'true',
+
+  ssl: {
+    rejectUnauthorized: false,
   },
 }));

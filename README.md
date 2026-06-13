@@ -25,20 +25,66 @@ pnpm install
 Configura las variables de entorno requeridas antes de iniciar la aplicacion:
 
 - `NODE_ENV`, `PORT`
-- `DATABASE_HOST`, `DATABASE_PORT`, `DATABASE_USERNAME`, `DATABASE_PASSWORD`, `DATABASE_NAME`
+- `DATABASE_HOST`, `DATABASE_PORT`, `DATABASE_USERNAME`, `DATABASE_PASSWORD`, `DATABASE_NAME`, `DATABASE_SYNCHRONIZE`
 - `JWT_SECRET`, `JWT_EXPIRATION`
 - `FRONTEND_URL`
 - `SMTP_HOST`, `SMTP_PORT`, `SMTP_USER`, `SMTP_PASS`, `SMTP_SECURE`, `EMAIL_FROM`
 - `WEB_PUSH_PUBLIC_KEY`, `WEB_PUSH_PRIVATE_KEY`, `WEB_PUSH_SUBJECT`
 - `USE_DEEP_LINK`, `APP_SCHEME`
 
-## Ejecucion
+## Ejecucion y cambio de entorno
 
-```bash
+La API escucha en `0.0.0.0`, usa el puerto configurado y expone sus rutas bajo
+`/api/v1`.
+
+### Desarrollo
+
+El entorno de desarrollo carga `.env`. Antes de iniciarlo, elimina cualquier
+valor de `NODE_ENV` que haya quedado activo en la terminal:
+
+```powershell
+Remove-Item Env:NODE_ENV -ErrorAction SilentlyContinue
 pnpm run start:dev
 ```
 
-La API escucha en `0.0.0.0`, usa el puerto configurado y expone sus rutas bajo `/api/v1`.
+### De desarrollo a produccion
+
+Completa primero las credenciales de produccion en `.env.prod`. Luego compila,
+activa `NODE_ENV=production` e inicia la version compilada:
+
+```powershell
+pnpm run build
+$env:NODE_ENV='production'
+pnpm run start:prod
+```
+
+Con `NODE_ENV=production`, el backend carga `.env.prod` en lugar de `.env`.
+
+### De produccion a desarrollo
+
+Deten el proceso de produccion, elimina `NODE_ENV` de la sesion actual y vuelve
+a iniciar el modo de desarrollo:
+
+```powershell
+Remove-Item Env:NODE_ENV -ErrorAction SilentlyContinue
+pnpm run start:dev
+```
+
+Al eliminar `NODE_ENV`, el backend vuelve a cargar `.env`.
+
+### Sincronizacion de base de datos
+
+`DATABASE_SYNCHRONIZE=true` permite que TypeORM cree o ajuste las tablas. Debe
+usarse solo durante la creacion inicial controlada del esquema. Una vez creadas
+las tablas de produccion, configura permanentemente:
+
+```env
+DATABASE_SYNCHRONIZE=false
+```
+
+En servicios como Vercel, Render o Railway, los archivos `.env` y `.env.prod`
+no se suben a GitHub. Las variables deben configurarse directamente en el panel
+del proveedor, usando `NODE_ENV=production` y `DATABASE_SYNCHRONIZE=false`.
 
 ## Arquitectura
 
@@ -83,6 +129,20 @@ Las consultas diarias e historicas usan la zona horaria `America/Bogota`.
 ### CORS
 
 Los origenes permitidos se administran en `src/main.ts`. Deben contemplar el dominio configurado en `FRONTEND_URL`, desarrollo local, dispositivos de la red `192.168.x.x` y Expo cuando siga siendo necesario.
+
+### Entrega de notificaciones
+
+La plataforma desde la que se crea o actualiza un pedido no cambia el envio. El
+backend identifica al usuario destinatario y entrega la misma notificacion por
+todos los canales que tenga registrados:
+
+- `push_subscriptions`: navegadores web.
+- `expo_tokens`: dispositivos Android.
+- `notifications`: historial persistido y estado de lectura.
+
+Esto cubre las combinaciones web a web, web a Android, Android a web y Android
+a Android. Para recibir en ambos destinos, el usuario debe haber iniciado
+sesion y concedido permisos al menos una vez en cada plataforma.
 
 ## Patrones de desarrollo
 
