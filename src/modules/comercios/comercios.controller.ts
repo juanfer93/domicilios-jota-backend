@@ -3,16 +3,11 @@ import {
   Get,
   Post,
   Body,
-  Patch,
-  Param,
-  Delete,
   UseGuards,
   Query,
-  ParseUUIDPipe,
 } from '@nestjs/common';
 import { ComerciosService } from './comercios.service';
 import { CreateComercioDto } from './dto/create-comercio.dto';
-import { UpdateComercioDto } from './dto/update-comercio.dto';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { RolesGuard } from '../../common/guards/roles.guard';
 import { Roles } from '../../common/decorators/roles.decorator';
@@ -40,25 +35,4 @@ export class ComerciosController {
     return this.comerciosService.search(nombre || '');
   }
 
-  @Get(':id')
-  findOne(@Param('id', ParseUUIDPipe) id: string) {
-    return this.comerciosService.findOne(id);
-  }
-
-  @Patch(':id')
-  @UseGuards(RolesGuard)
-  @Roles(Rol.ADMIN)
-  update(
-    @Param('id', ParseUUIDPipe) id: string,
-    @Body() updateComercioDto: UpdateComercioDto,
-  ) {
-    return this.comerciosService.update(id, updateComercioDto);
-  }
-
-  @Delete(':id')
-  @UseGuards(RolesGuard)
-  @Roles(Rol.ADMIN)
-  remove(@Param('id', ParseUUIDPipe) id: string) {
-    return this.comerciosService.remove(id);
-  }
 }

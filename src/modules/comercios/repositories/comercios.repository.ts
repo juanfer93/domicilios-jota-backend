@@ -15,11 +15,4 @@ export class ComerciosRepository extends Repository<Comercio> {
       })
       .getMany();
   }
-
-  async findByIdWithPedidos(id: string): Promise<Comercio | null> {
-    return this.findOne({
-      where: { id },
-      relations: ['pedidos'],
-    });
-  }
 }

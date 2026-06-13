@@ -31,11 +31,7 @@ describe('PedidosService', () => {
     findOne: jest.fn(),
     update: jest.fn(),
     find: jest.fn(),
-    remove: jest.fn(),
     createQueryBuilder: jest.fn(),
-    findByIdWithRelations: jest.fn(),
-    findWithFilters: jest.fn(),
-    findByUsuario: jest.fn(),
     findAllHistory: jest.fn(),
   };
 

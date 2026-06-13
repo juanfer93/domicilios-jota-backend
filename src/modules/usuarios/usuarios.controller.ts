@@ -5,14 +5,12 @@ import {
   Body,
   Patch,
   Param,
-  Delete,
   UseGuards,
   ParseUUIDPipe,
   Query,
 } from '@nestjs/common';
 import { UsuariosService } from './usuarios.service';
 import { CreateUsuarioDto } from './dto/create-usuario.dto';
-import { UpdateUsuarioDto } from './dto/update-usuario.dto';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { RolesGuard } from '../../common/guards/roles.guard';
 import { Roles } from '../../common/decorators/roles.decorator';
@@ -26,18 +24,6 @@ import { ToggleBloqueoDto } from './dto/toggle-bloqueo.dto';
 @UseGuards(JwtAuthGuard, RolesGuard)
 export class DomiciliariosPublicController {
   constructor(private readonly usuariosService: UsuariosService) {}
-
-  @Post()
-  @Roles(Rol.ADMIN)
-  create(@Body() createUsuarioDto: CreateUsuarioDto) {
-    return this.usuariosService.create(createUsuarioDto);
-  }
-
-  @Get()
-  @Roles(Rol.ADMIN)
-  findAll() {
-    return this.usuariosService.findAll();
-  }
 
   @Get('perfil')
   getProfile(@CurrentUser() user: Usuario) {
@@ -62,12 +48,6 @@ export class DomiciliariosPublicController {
     return this.usuariosService.searchDomiciliarios(nombre || '');
   }
 
-  @Delete('domiciliarios/:id')
-  @Roles(Rol.ADMIN)
-  removeDomiciliario(@Param('id', new ParseUUIDPipe()) id: string) {
-    return this.usuariosService.removeDomiciliario(id);
-  }
-
   /**
    * PATCH /usuarios/domiciliarios/:id/bloqueo
    * Bloquea o desbloquea un domiciliario.
@@ -82,26 +62,6 @@ export class DomiciliariosPublicController {
     return this.usuariosService.toggleBloqueo(id, dto.bloqueado);
   }
 
-  @Get(':id')
-  @Roles(Rol.ADMIN)
-  findOne(@Param('id', ParseUUIDPipe) id: string) {
-    return this.usuariosService.findOne(id);
-  }
-
-  @Patch(':id')
-  @Roles(Rol.ADMIN)
-  update(
-    @Param('id', ParseUUIDPipe) id: string,
-    @Body() updateUsuarioDto: UpdateUsuarioDto,
-  ) {
-    return this.usuariosService.update(id, updateUsuarioDto);
-  }
-
-  @Delete(':id')
-  @Roles(Rol.ADMIN)
-  remove(@Param('id', ParseUUIDPipe) id: string) {
-    return this.usuariosService.remove(id);
-  }
 }
 
 @Controller('users')
@@ -118,10 +78,4 @@ export class UsersPublicController {
     return this.usuariosService.createFirstAdmin(createUsuarioDto);
   }
 
-  @Get('dashboard-summary')
-  @UseGuards(JwtAuthGuard, RolesGuard)
-  @Roles(Rol.ADMIN)
-  getDashboardSummar() {
-    return this.usuariosService.getDashboardSummary();
-  }
 }

@@ -11,6 +11,7 @@ import { RegisterDto } from './dto/register.dto';
 import { SetPasswordDomiciliarioDto } from './dto/set-password-domiciliario.dto';
 import { JwtPayload } from './interfaces/jwt-payload.interface';
 import { Rol } from '../usuarios/enums/rol.enum';
+import { Usuario } from '../usuarios/entities/usuario.entity';
 import * as bcrypt from 'bcrypt';
 
 @Injectable()
@@ -82,7 +83,7 @@ export class AuthService {
     };
   }
 
-  private generateTokens(usuario: any) {
+  private generateTokens(usuario: Usuario) {
     const payload: JwtPayload = {
       sub: usuario.id,
       email: usuario.email,
@@ -92,23 +93,6 @@ export class AuthService {
     return {
       accessToken: this.jwtService.sign(payload),
     };
-  }
-
-  async confirmarDomiciliario(token: string): Promise<void> {
-    const usuario = await this.usuariosService.findByConfirmationToken(token);
-
-    if (!usuario || usuario.rol !== Rol.DOMICILIARIO) {
-      throw new BadRequestException('Token inválido');
-    }
-
-    if (
-      !usuario.email_confirmacion_expira ||
-      usuario.email_confirmacion_expira < new Date()
-    ) {
-      throw new BadRequestException('El enlace de confirmación ha expirado');
-    }
-
-    await this.usuariosService.marcarEmailConfirmado(usuario);
   }
 
   async validateUser(email: string, password: string) {

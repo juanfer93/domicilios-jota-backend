@@ -7,7 +7,6 @@ import {
 } from '@nestjs/common';
 import { PedidosRepository } from './repositories/pedidos.repository';
 import { CreatePedidoAdminDto } from './dto/create-pedido-admin.dto';
-import { FilterPedidosDto } from './dto/filter-pedidos.dto';
 import { Pedido } from './entities/pedido.entity';
 import { PedidoEstado } from './enums/estado-pedido.enum';
 import { NotificationsService } from '../notifications/notifications.service';
@@ -27,24 +26,6 @@ export class PedidosService {
     private readonly notificationsService: NotificationsService,
     private readonly usuariosService: UsuariosService,
   ) {}
-
-  async findAll(filters: FilterPedidosDto): Promise<Pedido[]> {
-    return this.pedidosRepository.findWithFilters(filters);
-  }
-
-  async findOne(id: string): Promise<Pedido> {
-    const pedido = await this.pedidosRepository.findByIdWithRelations(id);
-
-    if (!pedido) {
-      throw new NotFoundException(`Pedido con ID ${id} no encontrado`);
-    }
-
-    return pedido;
-  }
-
-  async findMyPedidos(usuarioId: string): Promise<Pedido[]> {
-    return this.pedidosRepository.findByUsuario(usuarioId);
-  }
 
   async getPedidosDelDia() {
     const { start, end } = getColombiaDayRange(getColombiaDateKey());
@@ -215,11 +196,6 @@ export class PedidosService {
     });
 
     return pedidos[0] ?? null;
-  }
-
-  async remove(id: string): Promise<void> {
-    const pedido = await this.findOne(id);
-    await this.pedidosRepository.remove(pedido);
   }
 
   private getColombiaRange(date: string) {

@@ -5,16 +5,11 @@ import {
   ForbiddenException,
 } from '@nestjs/common';
 import * as bcrypt from 'bcrypt';
-import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
 import { UsuariosRepository } from './repositories/usuarios.repository';
 import { CreateUsuarioDto } from './dto/create-usuario.dto';
 import { CreateDomiciliarioDto } from './dto/create-domiciliario.dto';
-import { UpdateUsuarioDto } from './dto/update-usuario.dto';
 import { EmailService } from '../../common/email/email.service';
 import { Usuario } from './entities/usuario.entity';
-import { Pedido } from '../pedidos/entities/pedido.entity';
-import { Comercio } from '../comercios/entities/comercio.entity';
 import { Rol } from './enums/rol.enum';
 import { randomUUID } from 'crypto';
 
@@ -22,10 +17,6 @@ import { randomUUID } from 'crypto';
 export class UsuariosService {
   constructor(
     private readonly usuariosRepository: UsuariosRepository,
-    @InjectRepository(Pedido)
-    private readonly pedidosRepository: Repository<Pedido>,
-    @InjectRepository(Comercio)
-    private readonly comerciosRepository: Repository<Comercio>,
     private readonly emailService: EmailService,
   ) {}
 
@@ -47,12 +38,6 @@ export class UsuariosService {
     });
 
     return this.usuariosRepository.save(usuario);
-  }
-
-  async findAll(): Promise<Usuario[]> {
-    return this.usuariosRepository.find({
-      order: { createdAt: 'DESC' },
-    });
   }
 
   async findOne(id: string): Promise<Usuario> {
@@ -77,20 +62,6 @@ export class UsuariosService {
     }
 
     return usuario;
-  }
-
-  async update(
-    id: string,
-    updateUsuarioDto: UpdateUsuarioDto,
-  ): Promise<Usuario> {
-    const usuario = await this.findOne(id);
-    Object.assign(usuario, updateUsuarioDto);
-    return this.usuariosRepository.save(usuario);
-  }
-
-  async remove(id: string): Promise<void> {
-    const usuario = await this.findOne(id);
-    await this.usuariosRepository.remove(usuario);
   }
 
   async validatePassword(
@@ -137,22 +108,6 @@ export class UsuariosService {
     });
 
     return this.usuariosRepository.save(admin);
-  }
-
-  async getDashboardSummary() {
-    const totalPedidos = await this.pedidosRepository.count();
-
-    const totalDomiciliarios = await this.usuariosRepository.count({
-      where: { rol: Rol.DOMICILIARIO },
-    });
-
-    const totalComercios = await this.comerciosRepository.count();
-
-    return {
-      totalPedidos,
-      totalDomiciliarios,
-      totalComercios,
-    };
   }
 
   private async hashPassword(plain: string): Promise<string> {
@@ -221,20 +176,6 @@ export class UsuariosService {
     Pick<Usuario, 'id' | 'nombre' | 'email' | 'bloqueado' | 'createdAt'>[]
   > {
     return this.usuariosRepository.findDomiciliariosByNombre(nombre.trim());
-  }
-
-  async removeDomiciliario(id: string): Promise<{ message: string }> {
-    const domi = await this.usuariosRepository.findOne({
-      where: { id, rol: Rol.DOMICILIARIO },
-    });
-
-    if (!domi) {
-      throw new NotFoundException('Domiciliario no encontrado');
-    }
-
-    await this.usuariosRepository.remove(domi);
-
-    return { message: 'Domiciliario eliminado correctamente' };
   }
 
   async toggleBloqueo(
