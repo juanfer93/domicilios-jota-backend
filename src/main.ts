@@ -69,32 +69,8 @@ async function bootstrap() {
   app.useGlobalFilters(new HttpExceptionFilter());
   app.useGlobalInterceptors(new TransformInterceptor());
 
-  const allowedOrigins = [
-    "http://localhost:3001",
-    "http://127.0.0.1:3001",
-    process.env.FRONTEND_URL, 
-  ].filter(Boolean);
-
   app.enableCors({
-    origin: (origin, callback) => {
-      if (!origin) {
-        return callback(null, true);
-      }
-      
-      if (allowedOrigins.includes(origin)) {
-        return callback(null, true);
-      }
-      
-      if (origin.match(/^http:\/\/192\.168\.\d+\.\d+:\d+$/)) {
-        return callback(null, true);
-      }
-      
-      if (origin.startsWith('exp://')) {
-        return callback(null, true);
-      }
-      
-      return callback(new Error(`CORS bloqueado para origin: ${origin}`), false);
-    },
+    origin: true,
     credentials: true,
   });
 
