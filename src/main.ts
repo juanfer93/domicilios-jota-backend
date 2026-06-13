@@ -5,47 +5,21 @@ import { HttpExceptionFilter } from './common/filters/http-exception.filter';
 import { TransformInterceptor } from './common/interceptors/transform.interceptor';
 
 function validarVariablesDeEntorno() {
-  const variablesCriticas = [
-    { nombre: 'DATABASE_HOST', obligatoria: true },
-    { nombre: 'DATABASE_USERNAME', obligatoria: true },
-    { nombre: 'DATABASE_PASSWORD', obligatoria: true },
-    { nombre: 'DATABASE_NAME', obligatoria: true },
-    { nombre: 'JWT_SECRET', obligatoria: true },
-    { nombre: 'USE_DEEP_LINK', obligatoria: false },
-    { nombre: 'APP_SCHEME', obligatoria: false },
-    { nombre: 'FRONTEND_URL', obligatoria: false },
-    { nombre: 'SMTP_HOST', obligatoria: false },
-    { nombre: 'SMTP_USER', obligatoria: false },
-    { nombre: 'SMTP_PASS', obligatoria: false },
+  const variablesObligatorias = [
+    'DATABASE_HOST',
+    'DATABASE_USERNAME',
+    'DATABASE_PASSWORD',
+    'DATABASE_NAME',
+    'JWT_SECRET',
   ];
 
-  console.log('\n🔍 Validando variables de entorno...');
-  
-  let hayErrores = false;
-  
-  variablesCriticas.forEach(({ nombre, obligatoria }) => {
-    const valor = process.env[nombre];
-    
-    if (!valor) {
-      if (obligatoria) {
-        console.error(`❌ Variable OBLIGATORIA faltante: ${nombre}`);
-        hayErrores = true;
-      } else {
-        console.warn(`⚠️  Variable opcional no definida: ${nombre}`);
-      }
-    } else {
-      const esSensible = ['DATABASE_PASSWORD', 'JWT_SECRET', 'SMTP_PASS'].includes(nombre);
-      const valorLog = esSensible ? '***' : valor;
-      console.log(`✅ ${nombre}: ${valorLog}`);
-    }
-  });
+  const hayErrores = variablesObligatorias.some(
+    (nombre) => !process.env[nombre],
+  );
 
   if (hayErrores) {
-    console.error('\n❌ Faltan variables de entorno obligatorias. Revisa tu archivo .env\n');
-    process.exit(1); // Detiene la aplicación
+    process.exit(1);
   }
-  
-  console.log('✅ Validación completada\n');
 }
 
 async function bootstrap() {
@@ -76,12 +50,6 @@ async function bootstrap() {
 
   const port = process.env.PORT || 3000;
   await app.listen(port, '0.0.0.0');
-
-  console.log(`🚀 Server running on http://localhost:${port}`);
-  console.log(`📚 API prefix: /api/v1`);
-  
-  console.log(`🌍 Entorno: ${process.env.NODE_ENV || 'development'}`);
-  console.log(`🔗 Deep Link: ${process.env.USE_DEEP_LINK === 'true' ? 'ACTIVADO (APK)' : 'DESACTIVADO (Web)'}`);
 }
 
 bootstrap();
