@@ -1,5 +1,6 @@
 import {
   BadRequestException,
+  ForbiddenException,
   Injectable,
   UnauthorizedException,
 } from '@nestjs/common';
@@ -62,6 +63,12 @@ export class AuthService {
       );
     }
 
+    if (usuario.bloqueado) {
+      throw new ForbiddenException(
+        'Tu cuenta ha sido bloqueada. Contacta al administrador.',
+      );
+    }
+
     const tokens = this.generateTokens(usuario);
 
     return {
@@ -119,6 +126,12 @@ export class AuthService {
     if (usuario.rol === Rol.DOMICILIARIO && !usuario.email_confirmado) {
       throw new UnauthorizedException(
         'Debes confirmar tu cuenta antes de iniciar sesión',
+      );
+    }
+
+    if (usuario.bloqueado) {
+      throw new ForbiddenException(
+        'Tu cuenta ha sido bloqueada. Contacta al administrador.',
       );
     }
 

@@ -1,64 +1,224 @@
+import { ForbiddenException, NotFoundException } from '@nestjs/common';
 import { NotificationsService } from '../notifications/notifications.service';
 import { CreatePedidoAdminDto } from './dto/create-pedido-admin.dto';
 import { PedidoEstado } from './enums/estado-pedido.enum';
 import { PedidosRepository } from './repositories/pedidos.repository';
 import { PedidosService } from './pedidos.service';
+import { UsuariosService } from '../usuarios/usuarios.service';
+import { Rol } from '../usuarios/enums/rol.enum';
+
+const makePedido = (overrides = {}) => ({
+  id: 'pedido-uuid',
+  domiciliarioId: 'domi-uuid',
+  assignedBy: 'admin-uuid',
+  estado: PedidoEstado.EN_PROCESO,
+  ...overrides,
+});
+
+const makeUsuario = (overrides = {}) => ({
+  id: 'domi-uuid',
+  nombre: 'Juan Domiciliario',
+  rol: Rol.DOMICILIARIO,
+  ...overrides,
+});
 
 describe('PedidosService', () => {
+  let service: PedidosService;
+
   const pedidosRepository = {
     create: jest.fn(),
     save: jest.fn(),
+    findOne: jest.fn(),
+    update: jest.fn(),
+    find: jest.fn(),
+    remove: jest.fn(),
+    createQueryBuilder: jest.fn(),
+    findByIdWithRelations: jest.fn(),
+    findWithFilters: jest.fn(),
+    findByUsuario: jest.fn(),
   };
+
   const notificationsService = {
     notifyUser: jest.fn(),
+    notifyDomiciliarioAsignado: jest.fn(),
+    notifyAdminEstadoCambiado: jest.fn(),
   };
-  let service: PedidosService;
+
+  const usuariosService = {
+    findOne: jest.fn(),
+  };
 
   beforeEach(() => {
     jest.clearAllMocks();
     service = new PedidosService(
       pedidosRepository as unknown as PedidosRepository,
       notificationsService as unknown as NotificationsService,
+      usuariosService as unknown as UsuariosService,
     );
   });
 
-  it('crea el pedido y notifica al domiciliario asignado', async () => {
-    const dto: CreatePedidoAdminDto = {
+  // ── createPedidoByAdmin ──────────────────────────────────────────────────
+
+  describe('createPedidoByAdmin', () => {
+    const baseDto: CreatePedidoAdminDto = {
       usuarioId: '5d6517de-c78a-4b99-bdb4-d981c13c27c5',
       comercioId: '1beb752b-8590-4c69-9cbe-bc7714a9ee94',
       valorFinal: 25000,
       valorDomicilio: 5000,
       direccionDestino: 'Calle 1 # 2-3',
     };
-    const pedidoCreado = { ...dto, estado: PedidoEstado.EN_PROCESO };
-    const pedidoGuardado = { ...pedidoCreado, id: 'pedido-id' };
-    pedidosRepository.create.mockReturnValue(pedidoCreado);
-    pedidosRepository.save.mockResolvedValue(pedidoGuardado);
-    notificationsService.notifyUser.mockResolvedValue({ ok: true, sent: 1 });
 
-    await expect(service.createPedidoByAdmin(dto, 'admin-id')).resolves.toBe(
-      pedidoGuardado,
-    );
-    expect(notificationsService.notifyUser).toHaveBeenCalledWith(
-      dto.usuarioId,
-      expect.objectContaining({ pedidoId: 'pedido-id' }),
-    );
+    it('crea el pedido correctamente y retorna el pedido guardado', async () => {
+      const pedidoGuardado = { ...baseDto, id: 'pedido-id', estado: PedidoEstado.EN_PROCESO };
+      pedidosRepository.create.mockReturnValue(pedidoGuardado);
+      pedidosRepository.save.mockResolvedValue(pedidoGuardado);
+      usuariosService.findOne.mockResolvedValue(makeUsuario({ id: baseDto.usuarioId }));
+      notificationsService.notifyDomiciliarioAsignado.mockResolvedValue(undefined);
+
+      const result = await service.createPedidoByAdmin(baseDto, 'admin-id');
+      expect(result).toBe(pedidoGuardado);
+    });
+
+    it('notifica al domiciliario cuando se asigna un domiciliarioId', async () => {
+      const dto = { ...baseDto, domiciliarioId: 'domi-uuid' };
+      const pedidoGuardado = { ...dto, id: 'pedido-id' };
+      pedidosRepository.create.mockReturnValue(pedidoGuardado);
+      pedidosRepository.save.mockResolvedValue(pedidoGuardado);
+      usuariosService.findOne.mockResolvedValue(makeUsuario());
+      notificationsService.notifyDomiciliarioAsignado.mockResolvedValue(undefined);
+
+      await service.createPedidoByAdmin(dto, 'admin-id');
+
+      // Damos tiempo a la promesa void
+      await new Promise((r) => setImmediate(r));
+
+      expect(notificationsService.notifyDomiciliarioAsignado).toHaveBeenCalledWith(
+        expect.objectContaining({ pedidoId: 'pedido-id' }),
+      );
+    });
+
+    it('no falla la creación si la notificación lanza error', async () => {
+      const dto = { ...baseDto, domiciliarioId: 'domi-uuid' };
+      const pedidoGuardado = { ...dto, id: 'pedido-id' };
+      pedidosRepository.create.mockReturnValue(pedidoGuardado);
+      pedidosRepository.save.mockResolvedValue(pedidoGuardado);
+      usuariosService.findOne.mockResolvedValue(makeUsuario());
+      notificationsService.notifyDomiciliarioAsignado.mockRejectedValue(new Error('push caido'));
+
+      await expect(service.createPedidoByAdmin(dto, 'admin-id')).resolves.toBe(pedidoGuardado);
+    });
+
+    it('usa usuarioId como domiciliarioId para clientes anteriores', async () => {
+      const pedidoGuardado = { ...baseDto, id: 'pedido-id' };
+      pedidosRepository.create.mockReturnValue(pedidoGuardado);
+      pedidosRepository.save.mockResolvedValue(pedidoGuardado);
+      usuariosService.findOne.mockResolvedValue(makeUsuario({ id: baseDto.usuarioId }));
+      notificationsService.notifyDomiciliarioAsignado.mockResolvedValue(undefined);
+
+      await service.createPedidoByAdmin(baseDto, 'admin-id');
+      await new Promise((r) => setImmediate(r));
+
+      expect(pedidosRepository.create).toHaveBeenCalledWith(
+        expect.objectContaining({ domiciliarioId: baseDto.usuarioId }),
+      );
+      expect(notificationsService.notifyDomiciliarioAsignado).toHaveBeenCalledWith(
+        expect.objectContaining({ domiciliarioId: baseDto.usuarioId }),
+      );
+    });
   });
 
-  it('no falla la creacion del pedido si la notificacion falla', async () => {
-    const dto: CreatePedidoAdminDto = {
-      usuarioId: '5d6517de-c78a-4b99-bdb4-d981c13c27c5',
-      comercioId: '1beb752b-8590-4c69-9cbe-bc7714a9ee94',
-      valorFinal: 25000,
-      direccionDestino: 'Calle 1 # 2-3',
-    };
-    const pedidoGuardado = { id: 'pedido-id' };
-    pedidosRepository.create.mockReturnValue({});
-    pedidosRepository.save.mockResolvedValue(pedidoGuardado);
-    notificationsService.notifyUser.mockRejectedValue(new Error('push caido'));
+  // ── updateEstadoPedido ───────────────────────────────────────────────────
 
-    await expect(service.createPedidoByAdmin(dto, 'admin-id')).resolves.toBe(
-      pedidoGuardado,
-    );
+  describe('updateEstadoPedido', () => {
+    it('admin puede cambiar el estado de cualquier pedido', async () => {
+      const pedido = makePedido();
+      pedidosRepository.findOne
+        .mockResolvedValueOnce(pedido) // primera llamada: buscar el pedido
+        .mockResolvedValueOnce({ ...pedido, estado: PedidoEstado.HECHO }); // segunda: retornar actualizado
+      pedidosRepository.update.mockResolvedValue(undefined);
+
+      const result = await service.updateEstadoPedido(
+        'pedido-uuid',
+        PedidoEstado.HECHO,
+        { id: 'admin-uuid', rol: Rol.ADMIN },
+      );
+
+      expect(pedidosRepository.update).toHaveBeenCalledWith(
+        'pedido-uuid',
+        { estado: PedidoEstado.HECHO },
+      );
+      expect(result?.estado).toBe(PedidoEstado.HECHO);
+    });
+
+    it('domiciliario puede cambiar estado de su propio pedido', async () => {
+      const pedido = makePedido({ domiciliarioId: 'domi-uuid' });
+      pedidosRepository.findOne
+        .mockResolvedValueOnce(pedido)
+        .mockResolvedValueOnce({ ...pedido, estado: PedidoEstado.HECHO });
+      pedidosRepository.update.mockResolvedValue(undefined);
+      usuariosService.findOne.mockResolvedValue(makeUsuario());
+      notificationsService.notifyAdminEstadoCambiado.mockResolvedValue(undefined);
+
+      const result = await service.updateEstadoPedido(
+        'pedido-uuid',
+        PedidoEstado.HECHO,
+        { id: 'domi-uuid', rol: Rol.DOMICILIARIO },
+      );
+
+      expect(pedidosRepository.update).toHaveBeenCalledWith(
+        'pedido-uuid',
+        { estado: PedidoEstado.HECHO },
+      );
+      // Esperar la notificación void
+      await new Promise((r) => setImmediate(r));
+      expect(notificationsService.notifyAdminEstadoCambiado).toHaveBeenCalledWith(
+        expect.objectContaining({ adminId: 'admin-uuid', estado: PedidoEstado.HECHO }),
+      );
+    });
+
+    it('domiciliario NO puede cambiar el estado de un pedido ajeno → ForbiddenException', async () => {
+      const pedido = makePedido({ domiciliarioId: 'otro-domi-uuid' });
+      pedidosRepository.findOne.mockResolvedValueOnce(pedido);
+
+      await expect(
+        service.updateEstadoPedido(
+          'pedido-uuid',
+          PedidoEstado.HECHO,
+          { id: 'domi-uuid', rol: Rol.DOMICILIARIO },
+        ),
+      ).rejects.toThrow(ForbiddenException);
+
+      expect(pedidosRepository.update).not.toHaveBeenCalled();
+    });
+
+    it('lanza NotFoundException si el pedido no existe', async () => {
+      pedidosRepository.findOne.mockResolvedValueOnce(null);
+
+      await expect(
+        service.updateEstadoPedido('no-existe', PedidoEstado.HECHO, {
+          id: 'admin-uuid',
+          rol: Rol.ADMIN,
+        }),
+      ).rejects.toThrow(NotFoundException);
+    });
+
+    it('NO modifica createdAt al terminar un pedido (bug corregido)', async () => {
+      const pedido = makePedido();
+      pedidosRepository.findOne
+        .mockResolvedValueOnce(pedido)
+        .mockResolvedValueOnce({ ...pedido, estado: PedidoEstado.HECHO });
+      pedidosRepository.update.mockResolvedValue(undefined);
+
+      await service.updateEstadoPedido('pedido-uuid', PedidoEstado.HECHO, {
+        id: 'admin-uuid',
+        rol: Rol.ADMIN,
+      });
+
+      // Verificar que update NUNCA se llama con createdAt
+      expect(pedidosRepository.update).toHaveBeenCalledWith(
+        'pedido-uuid',
+        expect.not.objectContaining({ createdAt: expect.anything() }),
+      );
+    });
   });
 });

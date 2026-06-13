@@ -30,6 +30,9 @@ export class Usuario {
   @Column({ default: false })
   email_confirmado!: boolean;
 
+  @Column({ name: 'bloqueado', type: 'boolean', default: false })
+  bloqueado!: boolean;
+
   @Column({ type: 'varchar', nullable: true })
   email_confirmacion_token!: string | null;
 

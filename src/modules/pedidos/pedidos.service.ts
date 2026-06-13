@@ -1,10 +1,22 @@
-import { Injectable, Logger, NotFoundException } from '@nestjs/common';
+import {
+  BadRequestException,
+  ForbiddenException,
+  Injectable,
+  Logger,
+  NotFoundException,
+} from '@nestjs/common';
 import { PedidosRepository } from './repositories/pedidos.repository';
 import { CreatePedidoAdminDto } from './dto/create-pedido-admin.dto';
 import { FilterPedidosDto } from './dto/filter-pedidos.dto';
 import { Pedido } from './entities/pedido.entity';
 import { PedidoEstado } from './enums/estado-pedido.enum';
 import { NotificationsService } from '../notifications/notifications.service';
+import { UsuariosService } from '../usuarios/usuarios.service';
+import { Rol } from '../usuarios/enums/rol.enum';
+import {
+  getColombiaDateKey,
+  getColombiaDayRange,
+} from '../../common/time/colombia-time';
 
 @Injectable()
 export class PedidosService {
@@ -13,6 +25,7 @@ export class PedidosService {
   constructor(
     private readonly pedidosRepository: PedidosRepository,
     private readonly notificationsService: NotificationsService,
+    private readonly usuariosService: UsuariosService,
   ) {}
 
   async findAll(filters: FilterPedidosDto): Promise<Pedido[]> {
@@ -34,22 +47,19 @@ export class PedidosService {
   }
 
   async getPedidosDelDia() {
+    const { start, end } = getColombiaDayRange(getColombiaDateKey());
+
     return this.pedidosRepository
       .createQueryBuilder('p')
       .leftJoinAndSelect('p.usuario', 'u')
       .leftJoinAndSelect('p.comercio', 'c')
-      .where(
-        `
-      p.created_at >= (((now() AT TIME ZONE 'America/Bogota')::date) AT TIME ZONE 'America/Bogota')
-      AND
-      p.created_at <  ((((now() AT TIME ZONE 'America/Bogota')::date) + INTERVAL '1 day') AT TIME ZONE 'America/Bogota')
-    `,
-      )
+      .where('p.created_at >= :start AND p.created_at < :end', { start, end })
       .orderBy('p.created_at', 'DESC')
       .getMany();
   }
 
   async createPedidoByAdmin(dto: CreatePedidoAdminDto, adminId: string) {
+    const domiciliarioId = dto.domiciliarioId ?? dto.usuarioId;
     const pedido = this.pedidosRepository.create({
       usuarioId: dto.usuarioId,
       comercioId: dto.comercioId,
@@ -60,7 +70,7 @@ export class PedidosService {
       valorPedido: dto.valorPedido,
       clienteNombre: dto.clienteNombre,
       clienteTelefono: dto.clienteTelefono,
-      domiciliarioId: dto.domiciliarioId,
+      domiciliarioId,
       direccionEntrega: dto.direccionEntrega,
       detallesAdicionales: dto.detallesAdicionales,
       estado: PedidoEstado.EN_PROCESO,
@@ -70,66 +80,109 @@ export class PedidosService {
 
     const pedidoGuardado = await this.pedidosRepository.save(pedido);
 
-    void this.notificationsService
-      .notifyUser(dto.usuarioId, {
-        title: 'Nuevo domicilio asignado',
-        body: 'Tienes un nuevo servicio en curso.',
-        url: '/profile-delivery/current-delivery',
-        pedidoId: pedidoGuardado.id,
-      })
-      .catch((error: unknown) => {
-        const message = error instanceof Error ? error.message : String(error);
-        this.logger.error(
-          `No se pudo enviar la notificación del pedido ${pedidoGuardado.id}: ${message}`,
-        );
-      });
+    // Notificar al domiciliario si fue asignado
+    if (domiciliarioId) {
+      void (async () => {
+        try {
+          const domiciliario = await this.usuariosService.findOne(domiciliarioId);
+          await this.notificationsService.notifyDomiciliarioAsignado({
+            domiciliarioId: domiciliario.id,
+            domiciliarioNombre: domiciliario.nombre,
+            pedidoId: pedidoGuardado.id,
+          });
+        } catch (error: unknown) {
+          const msg = error instanceof Error ? error.message : String(error);
+          this.logger.error(
+            `No se pudo notificar al domiciliario del pedido ${pedidoGuardado.id}: ${msg}`,
+          );
+        }
+      })();
+    }
 
     return pedidoGuardado;
   }
 
-  async updateEstadoPedido(pedidoId: string, estado: PedidoEstado) {
-    if (estado === PedidoEstado.HECHO || estado === PedidoEstado.CANCELADO) {
-      await this.pedidosRepository.update(pedidoId, { estado, createdAt: new Date() });
-    } else {
-      await this.pedidosRepository.update(pedidoId, { estado });
+  /**
+   * Actualiza el estado de un pedido.
+   *
+   * - Si el actor es DOMICILIARIO, valida que el pedido le pertenezca (domiciliarioId).
+   * - Nunca modifica createdAt (bug corregido).
+   * - Usa updatedAt automático (UpdateDateColumn).
+   * - Notifica al admin (assignedBy) cuando un domiciliario cambia el estado.
+   *
+   * @param pedidoId  ID del pedido
+   * @param estado    Nuevo estado
+   * @param actor     Usuario que ejecuta la acción (rol + id)
+   */
+  async updateEstadoPedido(
+    pedidoId: string,
+    estado: PedidoEstado,
+    actor: { id: string; rol: Rol },
+  ): Promise<Pedido | null> {
+    const pedido = await this.pedidosRepository.findOne({
+      where: { id: pedidoId },
+      relations: ['usuario'],
+    });
+
+    if (!pedido) {
+      throw new NotFoundException(`Pedido con ID ${pedidoId} no encontrado`);
     }
+
+    // Validación de propietario para domiciliarios
+    if (actor.rol === Rol.DOMICILIARIO && pedido.domiciliarioId !== actor.id) {
+      throw new ForbiddenException(
+        'No tienes permiso para modificar este pedido.',
+      );
+    }
+
+    // Actualizar solo el estado — updatedAt se maneja automáticamente
+    await this.pedidosRepository.update(pedidoId, { estado });
+
+    // Notificar al admin si el cambio lo hace un domiciliario
+    if (actor.rol === Rol.DOMICILIARIO && pedido.assignedBy) {
+      void (async () => {
+        try {
+          const domiciliario = await this.usuariosService.findOne(actor.id);
+          await this.notificationsService.notifyAdminEstadoCambiado({
+            adminId: pedido.assignedBy,
+            domiciliarioNombre: domiciliario.nombre,
+            pedidoId,
+            estado,
+          });
+        } catch (error: unknown) {
+          const msg = error instanceof Error ? error.message : String(error);
+          this.logger.error(
+            `No se pudo notificar al admin del cambio de estado del pedido ${pedidoId}: ${msg}`,
+          );
+        }
+      })();
+    }
+
     return this.pedidosRepository.findOne({ where: { id: pedidoId } });
   }
 
   async getHistorialByDate(date: string) {
-    const dateOnly = (date ?? '').slice(0, 10);
+    const { start, end } = this.getColombiaRange(date);
 
     return this.pedidosRepository
       .createQueryBuilder('p')
       .leftJoinAndSelect('p.usuario', 'u')
       .leftJoinAndSelect('p.comercio', 'c')
-      .where(
-        `
-      p.created_at >= ((:dateOnly::date) AT TIME ZONE 'America/Bogota')
-      AND
-      p.created_at <  (((:dateOnly::date) + INTERVAL '1 day') AT TIME ZONE 'America/Bogota')
-      `,
-        { dateOnly },
-      )
+      .where('p.created_at >= :start AND p.created_at < :end', { start, end })
       .orderBy('p.created_at', 'DESC')
       .getMany();
   }
 
   async getHistorialDomiciliarioByDate(date: string, usuarioId: string) {
-    const dateOnly = (date ?? '').slice(0, 10);
+    const { start, end } = this.getColombiaRange(date);
 
     return this.pedidosRepository
       .createQueryBuilder('p')
       .leftJoinAndSelect('p.usuario', 'u')
       .leftJoinAndSelect('p.comercio', 'c')
       .where(
-        `
-      p.created_at >= ((:dateOnly::date) AT TIME ZONE 'America/Bogota')
-      AND
-      p.created_at <  (((:dateOnly::date) + INTERVAL '1 day') AT TIME ZONE 'America/Bogota')
-      AND p.usuario_id = :usuarioId
-      `,
-        { dateOnly, usuarioId },
+        'p.created_at >= :start AND p.created_at < :end AND p.usuario_id = :usuarioId',
+        { start, end, usuarioId },
       )
       .orderBy('p.created_at', 'DESC')
       .getMany();
@@ -152,5 +205,13 @@ export class PedidosService {
   async remove(id: string): Promise<void> {
     const pedido = await this.findOne(id);
     await this.pedidosRepository.remove(pedido);
+  }
+
+  private getColombiaRange(date: string) {
+    try {
+      return getColombiaDayRange(date);
+    } catch {
+      throw new BadRequestException('La fecha debe usar el formato YYYY-MM-DD.');
+    }
   }
 }

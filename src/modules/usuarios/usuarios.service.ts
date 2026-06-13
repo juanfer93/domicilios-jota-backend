@@ -2,6 +2,7 @@ import {
   Injectable,
   ConflictException,
   NotFoundException,
+  ForbiddenException,
 } from '@nestjs/common';
 import * as bcrypt from 'bcrypt';
 import { InjectRepository } from '@nestjs/typeorm';
@@ -203,11 +204,11 @@ export class UsuariosService {
   }
 
   async findAllDomiciliarios(): Promise<
-    Pick<Usuario, 'id' | 'nombre' | 'email'>[]
+    Pick<Usuario, 'id' | 'nombre' | 'email' | 'bloqueado' | 'createdAt'>[]
   > {
     const domiciliarios = await this.usuariosRepository.find({
       where: { rol: Rol.DOMICILIARIO },
-      select: ['id', 'nombre', 'email'],
+      select: ['id', 'nombre', 'email', 'bloqueado', 'createdAt'],
       order: { createdAt: 'DESC' },
     });
 
@@ -226,6 +227,32 @@ export class UsuariosService {
     await this.usuariosRepository.remove(domi);
 
     return { message: 'Domiciliario eliminado correctamente' };
+  }
+
+  async toggleBloqueo(
+    id: string,
+    bloqueado: boolean,
+  ): Promise<
+    Pick<Usuario, 'id' | 'nombre' | 'email' | 'bloqueado' | 'createdAt'>
+  > {
+    const domi = await this.usuariosRepository.findOne({
+      where: { id, rol: Rol.DOMICILIARIO },
+    });
+
+    if (!domi) {
+      throw new NotFoundException('Domiciliario no encontrado');
+    }
+
+    domi.bloqueado = bloqueado;
+    const guardado = await this.usuariosRepository.save(domi);
+
+    return {
+      id: guardado.id,
+      nombre: guardado.nombre,
+      email: guardado.email,
+      bloqueado: guardado.bloqueado,
+      createdAt: guardado.createdAt,
+    };
   }
 
   async findByConfirmationToken(token: string): Promise<Usuario | null> {

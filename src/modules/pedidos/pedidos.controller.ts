@@ -17,6 +17,7 @@ import { RolesGuard } from '../../common/guards/roles.guard';
 import { Roles } from '../../common/decorators/roles.decorator';
 import { UpdatePedidoEstadoDto } from './dto/update-pedido-estado.dto';
 import { Rol } from '../usuarios/enums/rol.enum';
+import { getColombiaDateKey } from '../../common/time/colombia-time';
 
 @UseGuards(JwtAuthGuard, RolesGuard)
 @Roles(Rol.ADMIN)
@@ -28,21 +29,34 @@ export class PedidosController {
   @Roles(Rol.ADMIN, Rol.DOMICILIARIO)
   getPedidosDelDia(@Req() req: any) {
     if (req.user.rol === Rol.DOMICILIARIO) {
-      const today = new Date().toISOString().slice(0, 10);
+      const today = getColombiaDateKey();
       return this.pedidosService.getHistorialDomiciliarioByDate(today, req.user.id);
     }
     return this.pedidosService.getPedidosDelDia();
   }
 
   @Post()
-  createPedido(@Body() dto: CreatePedidoAdminDto, @Req() req) {
+  createPedido(@Body() dto: CreatePedidoAdminDto, @Req() req: any) {
     return this.pedidosService.createPedidoByAdmin(dto, req.user.id);
   }
 
+  /**
+   * Cambiar estado de un pedido.
+   * Se pasa el actor (rol + id) al servicio para:
+   * - Validar propiedad si es DOMICILIARIO
+   * - Enviar la notificación al admin correcta
+   */
   @Patch(':id/estado')
   @Roles(Rol.ADMIN, Rol.DOMICILIARIO)
-  updateEstado(@Param('id') id: string, @Body() dto: UpdatePedidoEstadoDto) {
-    return this.pedidosService.updateEstadoPedido(id, dto.estado);
+  updateEstado(
+    @Param('id') id: string,
+    @Body() dto: UpdatePedidoEstadoDto,
+    @Req() req: any,
+  ) {
+    return this.pedidosService.updateEstadoPedido(id, dto.estado, {
+      id: req.user.id,
+      rol: req.user.rol as Rol,
+    });
   }
 
   @Get('history')

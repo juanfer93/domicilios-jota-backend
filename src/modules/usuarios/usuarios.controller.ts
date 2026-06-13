@@ -19,6 +19,7 @@ import { CurrentUser } from '../../common/decorators/current-user.decorator';
 import { Rol } from './enums/rol.enum';
 import { Usuario } from './entities/usuario.entity';
 import { CreateDomiciliarioDto } from './dto/create-domiciliario.dto';
+import { ToggleBloqueoDto } from './dto/toggle-bloqueo.dto';
 
 @Controller('usuarios')
 @UseGuards(JwtAuthGuard, RolesGuard)
@@ -58,6 +59,20 @@ export class DomiciliariosPublicController {
   @Roles(Rol.ADMIN)
   removeDomiciliario(@Param('id', new ParseUUIDPipe()) id: string) {
     return this.usuariosService.removeDomiciliario(id);
+  }
+
+  /**
+   * PATCH /usuarios/domiciliarios/:id/bloqueo
+   * Bloquea o desbloquea un domiciliario.
+   * Body: { bloqueado: boolean }
+   */
+  @Patch('domiciliarios/:id/bloqueo')
+  @Roles(Rol.ADMIN)
+  toggleBloqueo(
+    @Param('id', new ParseUUIDPipe()) id: string,
+    @Body() dto: ToggleBloqueoDto,
+  ) {
+    return this.usuariosService.toggleBloqueo(id, dto.bloqueado);
   }
 
   @Get(':id')

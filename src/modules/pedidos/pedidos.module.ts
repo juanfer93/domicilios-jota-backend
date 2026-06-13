@@ -11,7 +11,7 @@ import { NotificationsModule } from '../notifications/notifications.module';
 @Module({
   imports: [
     TypeOrmModule.forFeature([Pedido]),
-    UsuariosModule,
+    UsuariosModule,    // exporta UsuariosService → disponible para PedidosService
     ComerciosModule,
     NotificationsModule,
   ],
