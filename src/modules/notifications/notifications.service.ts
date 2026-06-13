@@ -76,7 +76,7 @@ export class NotificationsService {
   async registerExpoToken(
     usuarioId: string,
     token: string,
-    platform: string,
+    platform: 'android',
   ): Promise<{ ok: boolean }> {
     await this.expoTokensRepo.upsertForUser(usuarioId, token, platform);
     return { ok: true };
@@ -253,6 +253,7 @@ export class NotificationsService {
     const messages = tokens.map((t) => ({
       to: t.token,
       sound: 'default' as const,
+      channelId: 'orders',
       title: message.title,
       body: message.body,
       data: message.data,

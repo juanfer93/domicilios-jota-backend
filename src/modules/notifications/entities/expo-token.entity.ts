@@ -22,9 +22,9 @@ export class ExpoTokenEntity {
   @Column({ type: 'text' })
   token: string;
 
-  /** 'ios' | 'android' | 'web' — viene del Platform.OS de React Native */
+  /** La aplicacion movil soportada es exclusivamente Android. */
   @Column({ type: 'varchar', length: 20 })
-  platform: string;
+  platform: 'android';
 
   @Column({ name: 'usuario_id', type: 'uuid' })
   usuarioId: string;

@@ -118,6 +118,53 @@ describe('NotificationsService', () => {
 
   // ── notifyDomiciliarioAsignado ───────────────────────────────────────────
 
+  describe('notifyUser para Android', () => {
+    it('envia a Expo el canal orders y el payload persistido', async () => {
+      const originalFetch = global.fetch;
+      const fetchMock = jest.fn().mockResolvedValue({ ok: true });
+      global.fetch = fetchMock as unknown as typeof fetch;
+
+      notificationsRepo.saveNotification.mockResolvedValue({
+        id: 'notif-id',
+        createdAt: new Date('2026-06-12T18:30:00.000Z'),
+      });
+      expoTokensRepo.findByUser.mockResolvedValue([
+        { token: 'ExponentPushToken[android-token]', platform: 'android' },
+      ]);
+
+      try {
+        await service.notifyUser(
+          'user-uuid',
+          { type: 'PEDIDO_ASIGNADO', pedidoId: 'pedido-uuid' },
+          {
+            tipo: 'PEDIDO_ASIGNADO',
+            titulo: 'Nuevo pedido asignado',
+            cuerpo: 'Tienes un nuevo servicio en curso.',
+            pedidoId: 'pedido-uuid',
+          },
+        );
+      } finally {
+        global.fetch = originalFetch;
+      }
+
+      expect(fetchMock).toHaveBeenCalledTimes(1);
+      const request = fetchMock.mock.calls[0][1] as RequestInit;
+      expect(JSON.parse(request.body as string)).toEqual([
+        expect.objectContaining({
+          to: 'ExponentPushToken[android-token]',
+          channelId: 'orders',
+          title: 'Nuevo pedido asignado',
+          body: 'Tienes un nuevo servicio en curso.',
+          data: expect.objectContaining({
+            notificationId: 'notif-id',
+            pedidoId: 'pedido-uuid',
+            createdAt: '2026-06-12T18:30:00.000Z',
+          }),
+        }),
+      ]);
+    });
+  });
+
   describe('notifyDomiciliarioAsignado', () => {
     it('persiste la notificación con tipo PEDIDO_ASIGNADO', async () => {
       const notif = { id: 'notif-id' };

@@ -15,7 +15,7 @@ export class ExpoTokensRepository extends Repository<ExpoTokenEntity> {
   async upsertForUser(
     usuarioId: string,
     token: string,
-    platform: string,
+    platform: 'android',
   ): Promise<ExpoTokenEntity> {
     const existing = await this.findOne({ where: { token } });
 
@@ -30,6 +30,6 @@ export class ExpoTokensRepository extends Repository<ExpoTokenEntity> {
   }
 
   async findByUser(usuarioId: string): Promise<ExpoTokenEntity[]> {
-    return this.find({ where: { usuarioId } });
+    return this.find({ where: { usuarioId, platform: 'android' } });
   }
 }

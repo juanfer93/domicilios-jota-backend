@@ -46,8 +46,8 @@ export class NotificationsController {
 
   /**
    * POST /notifications/register-token
-   * El frontend nativo (iOS/Android) lo llama tras obtener el token Expo.
-   * Body: { token: string, platform: string, provider: 'EXPO' }
+   * La aplicacion Android lo llama tras obtener el token Expo.
+   * Body: { token: string, platform: 'android', provider: 'EXPO' }
    */
   @Post('register-token')
   registerToken(
