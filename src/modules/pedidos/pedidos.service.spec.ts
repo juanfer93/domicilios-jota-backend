@@ -240,7 +240,10 @@ describe('PedidosService', () => {
       pedidosRepository.findAllHistory.mockResolvedValue(pedidos);
 
       await expect(service.getAllHistory('  Juan  ')).resolves.toEqual(pedidos);
-      expect(pedidosRepository.findAllHistory).toHaveBeenCalledWith('Juan');
+      expect(pedidosRepository.findAllHistory).toHaveBeenCalledWith(
+        'Juan',
+        expect.any(Date),
+      );
     });
 
     it('consulta todo el historial cuando no hay busqueda', async () => {
@@ -248,7 +251,102 @@ describe('PedidosService', () => {
 
       await service.getAllHistory('   ');
 
-      expect(pedidosRepository.findAllHistory).toHaveBeenCalledWith(undefined);
+      expect(pedidosRepository.findAllHistory).toHaveBeenCalledWith(
+        undefined,
+        expect.any(Date),
+      );
+    });
+  });
+
+  describe('getHistorialDomiciliarioByDate', () => {
+    it('filtra por el usuarioId UUID autenticado', async () => {
+      const queryBuilder = {
+        leftJoinAndSelect: jest.fn().mockReturnThis(),
+        where: jest.fn().mockReturnThis(),
+        orderBy: jest.fn().mockReturnThis(),
+        getMany: jest.fn().mockResolvedValue([{ id: 'pedido-propio' }]),
+      };
+      pedidosRepository.createQueryBuilder.mockReturnValue(queryBuilder);
+
+      await expect(
+        service.getHistorialDomiciliarioByDate(
+          '2026-06-13',
+          '5d6517de-c78a-4b99-bdb4-d981c13c27c5',
+        ),
+      ).resolves.toEqual([{ id: 'pedido-propio' }]);
+
+      expect(queryBuilder.where).toHaveBeenCalledWith(
+        expect.stringContaining('p.usuario_id = :usuarioId'),
+        expect.objectContaining({
+          usuarioId: '5d6517de-c78a-4b99-bdb4-d981c13c27c5',
+        }),
+      );
+    });
+  });
+
+  describe('retencion de pedidos', () => {
+    it('mantiene activos y finalizados de las ultimas 12 horas en Pedidos', async () => {
+      const queryBuilder = {
+        leftJoinAndSelect: jest.fn().mockReturnThis(),
+        where: jest.fn().mockReturnThis(),
+        andWhere: jest.fn().mockReturnThis(),
+        orderBy: jest.fn().mockReturnThis(),
+        getMany: jest.fn().mockResolvedValue([]),
+      };
+      pedidosRepository.createQueryBuilder.mockReturnValue(queryBuilder);
+
+      await service.getPedidosDelDia('domiciliario-uuid');
+
+      expect(queryBuilder.where).toHaveBeenCalledWith(
+        expect.stringContaining('p.updated_at >= :finalCutoff'),
+        expect.objectContaining({
+          activeState: PedidoEstado.EN_PROCESO,
+          finalStates: [PedidoEstado.HECHO, PedidoEstado.CANCELADO],
+          finalCutoff: expect.any(Date),
+        }),
+      );
+      const visibilityParams = queryBuilder.where.mock.calls[0][1] as {
+        finalCutoff: Date;
+      };
+      expect(
+        Math.abs(
+          visibilityParams.finalCutoff.getTime() -
+            (Date.now() - 12 * 60 * 60 * 1000),
+        ),
+      ).toBeLessThan(1000);
+      expect(queryBuilder.andWhere).toHaveBeenCalledWith(
+        'p.usuario_id = :usuarioId',
+        { usuarioId: 'domiciliario-uuid' },
+      );
+    });
+
+    it('limita el historial del domiciliario a 60 dias', async () => {
+      const queryBuilder = {
+        leftJoinAndSelect: jest.fn().mockReturnThis(),
+        where: jest.fn().mockReturnThis(),
+        orderBy: jest.fn().mockReturnThis(),
+        getMany: jest.fn().mockResolvedValue([]),
+      };
+      pedidosRepository.createQueryBuilder.mockReturnValue(queryBuilder);
+
+      await service.getHistorialDomiciliarioUltimos60Dias('domiciliario-uuid');
+
+      expect(queryBuilder.where).toHaveBeenCalledWith(
+        expect.stringContaining('p.created_at >= :retentionCutoff'),
+        expect.objectContaining({
+          retentionCutoff: expect.any(Date),
+          usuarioId: 'domiciliario-uuid',
+        }),
+      );
+      const historyParams = queryBuilder.where.mock.calls[0][1] as {
+        retentionCutoff: Date;
+      };
+      expect(
+        Math.abs(
+          historyParams.retentionCutoff.getTime() -
+            (Date.now() - 60 * 24 * 60 * 60 * 1000),
+        ),
+      ).toBeLessThan(1000);
     });
   });
 });

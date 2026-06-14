@@ -8,10 +8,11 @@ export class PedidosRepository extends Repository<Pedido> {
     super(Pedido, dataSource.createEntityManager());
   }
 
-  async findAllHistory(search?: string): Promise<Pedido[]> {
+  async findAllHistory(search: string | undefined, retentionCutoff: Date): Promise<Pedido[]> {
     const queryBuilder = this.createQueryBuilder('pedido')
       .leftJoinAndSelect('pedido.usuario', 'usuario')
-      .leftJoinAndSelect('pedido.comercio', 'comercio');
+      .leftJoinAndSelect('pedido.comercio', 'comercio')
+      .where('pedido.created_at >= :retentionCutoff', { retentionCutoff });
 
     if (search) {
       queryBuilder.andWhere(

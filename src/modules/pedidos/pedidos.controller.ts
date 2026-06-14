@@ -16,7 +16,6 @@ import { RolesGuard } from '../../common/guards/roles.guard';
 import { Roles } from '../../common/decorators/roles.decorator';
 import { UpdatePedidoEstadoDto } from './dto/update-pedido-estado.dto';
 import { Rol } from '../usuarios/enums/rol.enum';
-import { getColombiaDateKey } from '../../common/time/colombia-time';
 
 @UseGuards(JwtAuthGuard, RolesGuard)
 @Roles(Rol.ADMIN)
@@ -27,14 +26,11 @@ export class PedidosController {
   @Get('hoy')
   @Roles(Rol.ADMIN, Rol.DOMICILIARIO)
   getPedidosDelDia(@Req() req: any) {
-    if (req.user.rol === Rol.DOMICILIARIO) {
-      const today = getColombiaDateKey();
-      return this.pedidosService.getHistorialDomiciliarioByDate(today, req.user.id);
-    }
-    return this.pedidosService.getPedidosDelDia();
+    return this.pedidosService.getPedidosDelDia(req.user.rol === Rol.DOMICILIARIO ? req.user.id : undefined);
   }
 
   @Post()
+  @Roles(Rol.ADMIN)
   createPedido(@Body() dto: CreatePedidoAdminDto, @Req() req: any) {
     return this.pedidosService.createPedidoByAdmin(dto, req.user.id);
   }
@@ -62,7 +58,7 @@ export class PedidosController {
   @Roles(Rol.ADMIN, Rol.DOMICILIARIO)
   getHistorial(@Query('date') date: string, @Req() req: any) {
     if (req.user.rol === Rol.DOMICILIARIO) {
-      return this.pedidosService.getHistorialDomiciliarioByDate(date, req.user.id);
+      return this.pedidosService.getHistorialDomiciliarioUltimos60Dias(req.user.id);
     }
     return this.pedidosService.getHistorialByDate(date);
   }
@@ -82,6 +78,6 @@ export class PedidosController {
   @Get('domiciliarios/history')
   @Roles(Rol.DOMICILIARIO)
   getHistorialDomiciliario(@Query('date') date: string, @Req() req: any) {
-    return this.pedidosService.getHistorialDomiciliarioByDate(date, req.user.id);
+    return this.pedidosService.getHistorialDomiciliarioUltimos60Dias(req.user.id);
   }
 }

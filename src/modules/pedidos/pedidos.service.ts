@@ -12,10 +12,7 @@ import { PedidoEstado } from './enums/estado-pedido.enum';
 import { NotificationsService } from '../notifications/notifications.service';
 import { UsuariosService } from '../usuarios/usuarios.service';
 import { Rol } from '../usuarios/enums/rol.enum';
-import {
-  getColombiaDateKey,
-  getColombiaDayRange,
-} from '../../common/time/colombia-time';
+import { getColombiaDayRange } from '../../common/time/colombia-time';
 
 @Injectable()
 export class PedidosService {
@@ -27,16 +24,26 @@ export class PedidosService {
     private readonly usuariosService: UsuariosService,
   ) {}
 
-  async getPedidosDelDia() {
-    const { start, end } = getColombiaDayRange(getColombiaDateKey());
-
-    return this.pedidosRepository
+  async getPedidosDelDia(usuarioId?: string) {
+    const finalCutoff = this.hoursAgo(12);
+    const query = this.pedidosRepository
       .createQueryBuilder('p')
       .leftJoinAndSelect('p.usuario', 'u')
       .leftJoinAndSelect('p.comercio', 'c')
-      .where('p.created_at >= :start AND p.created_at < :end', { start, end })
-      .orderBy('p.created_at', 'DESC')
-      .getMany();
+      .where(
+        '(p.estado = :activeState OR (p.estado IN (:...finalStates) AND p.updated_at >= :finalCutoff))',
+        {
+          activeState: PedidoEstado.EN_PROCESO,
+          finalStates: [PedidoEstado.HECHO, PedidoEstado.CANCELADO],
+          finalCutoff,
+        },
+      );
+
+    if (usuarioId) {
+      query.andWhere('p.usuario_id = :usuarioId', { usuarioId });
+    }
+
+    return query.orderBy('p.updated_at', 'DESC').getMany();
   }
 
   async createPedidoByAdmin(dto: CreatePedidoAdminDto, adminId: string) {
@@ -154,19 +161,29 @@ export class PedidosService {
 
   async getHistorialByDate(date: string) {
     const { start, end } = this.getColombiaRange(date);
+    const retentionCutoff = this.daysAgo(60);
+
+    if (end <= retentionCutoff) {
+      return [];
+    }
+
+    const effectiveStart = start > retentionCutoff ? start : retentionCutoff;
 
     return this.pedidosRepository
       .createQueryBuilder('p')
       .leftJoinAndSelect('p.usuario', 'u')
       .leftJoinAndSelect('p.comercio', 'c')
-      .where('p.created_at >= :start AND p.created_at < :end', { start, end })
+      .where('p.created_at >= :start AND p.created_at < :end', { start: effectiveStart, end })
       .orderBy('p.created_at', 'DESC')
       .getMany();
   }
 
   async getAllHistory(search?: string) {
     const normalizedSearch = search?.trim();
-    return this.pedidosRepository.findAllHistory(normalizedSearch || undefined);
+    return this.pedidosRepository.findAllHistory(
+      normalizedSearch || undefined,
+      this.daysAgo(60),
+    );
   }
 
   async getHistorialDomiciliarioByDate(date: string, usuarioId: string) {
@@ -180,6 +197,18 @@ export class PedidosService {
         'p.created_at >= :start AND p.created_at < :end AND p.usuario_id = :usuarioId',
         { start, end, usuarioId },
       )
+      .orderBy('p.created_at', 'DESC')
+      .getMany();
+  }
+
+  async getHistorialDomiciliarioUltimos60Dias(usuarioId: string) {
+    return this.pedidosRepository
+      .createQueryBuilder('p')
+      .leftJoinAndSelect('p.usuario', 'u')
+      .leftJoinAndSelect('p.comercio', 'c')
+      .where('p.created_at >= :retentionCutoff AND p.usuario_id = :usuarioId', {
+        retentionCutoff: this.daysAgo(60), usuarioId,
+      })
       .orderBy('p.created_at', 'DESC')
       .getMany();
   }
@@ -204,5 +233,13 @@ export class PedidosService {
     } catch {
       throw new BadRequestException('La fecha debe usar el formato YYYY-MM-DD.');
     }
+  }
+
+  private hoursAgo(hours: number) {
+    return new Date(Date.now() - hours * 60 * 60 * 1000);
+  }
+
+  private daysAgo(days: number) {
+    return new Date(Date.now() - days * 24 * 60 * 60 * 1000);
   }
 }
