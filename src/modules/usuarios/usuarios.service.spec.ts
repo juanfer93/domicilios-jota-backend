@@ -1,11 +1,8 @@
-import { ForbiddenException, NotFoundException } from '@nestjs/common';
+import { NotFoundException } from '@nestjs/common';
 import { UsuariosService } from './usuarios.service';
 import { UsuariosRepository } from './repositories/usuarios.repository';
 import { Rol } from './enums/rol.enum';
 import { Usuario } from './entities/usuario.entity';
-import { Repository } from 'typeorm';
-import { Pedido } from '../pedidos/entities/pedido.entity';
-import { Comercio } from '../comercios/entities/comercio.entity';
 import { EmailService } from '../../common/email/email.service';
 
 const makeDomiciliario = (overrides = {}): Partial<Usuario> => ({
@@ -34,16 +31,14 @@ describe('UsuariosService - toggleBloqueo', () => {
     count: jest.fn(),
   };
 
-  const pedidosRepository = { count: jest.fn() } as unknown as Repository<Pedido>;
-  const comerciosRepository = { count: jest.fn() } as unknown as Repository<Comercio>;
-  const emailService = { enviarInvitacionDomiciliario: jest.fn() } as unknown as EmailService;
+  const emailService = {
+    enviarInvitacionDomiciliario: jest.fn(),
+  } as unknown as EmailService;
 
   beforeEach(() => {
     jest.clearAllMocks();
     service = new UsuariosService(
       usuariosRepository as unknown as UsuariosRepository,
-      pedidosRepository,
-      comerciosRepository,
       emailService,
     );
   });
