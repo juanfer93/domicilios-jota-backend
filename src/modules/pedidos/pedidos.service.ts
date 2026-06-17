@@ -73,7 +73,7 @@ export class PedidosService {
 
     const pedidoGuardado = await this.pedidosRepository.save(pedido);
 
-    void this.notifyAssignedDomiciliario(domiciliarioId, pedidoGuardado.id);
+    await this.notifyAssignedDomiciliario(domiciliarioId, pedidoGuardado.id);
 
     return pedidoGuardado;
   }
@@ -111,7 +111,7 @@ export class PedidosService {
     await this.pedidosRepository.update(pedidoId, { estado });
 
     if (actor.rol === Rol.DOMICILIARIO && pedido.assignedBy) {
-      void this.notifyAdminEstado(
+      await this.notifyAdminEstado(
         pedido.assignedBy,
         actor.id,
         pedidoId,
