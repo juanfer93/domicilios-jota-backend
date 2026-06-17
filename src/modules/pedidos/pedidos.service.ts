@@ -62,7 +62,7 @@ export class PedidosService {
   private async resolveDomiciliarioId(dto: CreatePedidoAdminDto): Promise<string> {
     const manualId = dto.domiciliarioId ?? dto.usuarioId; if (manualId) return manualId;
     const selected = this.pickAssignmentCandidate(await this.pedidosRepository.findAssignmentCandidates());
-    if (!selected) throw new BadRequestException('No hay domiciliarios disponibles para asignar el pedido.');
+    if (!selected) throw new BadRequestException('Todos los domiciliarios están ocupados o no hay domiciliarios disponibles. Intenta crear el pedido cuando alguno finalice su pedido actual.');
     return selected.id;
   }
 
