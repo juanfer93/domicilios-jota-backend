@@ -19,7 +19,7 @@ export class AuthService {
   constructor(
     private readonly usuariosService: UsuariosService,
     private readonly jwtService: JwtService,
-  ) {}
+  ) { }
 
   async register(registerDto: RegisterDto) {
     const usuario = await this.usuariosService.create({
@@ -103,6 +103,7 @@ export class AuthService {
     }
 
     const isMatch = await bcrypt.compare(password, usuario.password);
+
     if (!isMatch) {
       throw new UnauthorizedException('Credenciales inválidas');
     }
@@ -122,6 +123,31 @@ export class AuthService {
     return usuario;
   }
 
+  async confirmDomiciliarioAccount(token: string) {
+    const usuario = await this.usuariosService.findByConfirmationToken(token);
+
+    if (!usuario || usuario.rol !== Rol.DOMICILIARIO) {
+      throw new BadRequestException('Token inválido');
+    }
+
+    if (
+      !usuario.email_confirmacion_expira ||
+      usuario.email_confirmacion_expira < new Date()
+    ) {
+      throw new BadRequestException('El enlace de confirmación ha expirado');
+    }
+
+    await this.usuariosService.marcarEmailConfirmado(usuario);
+
+    return {
+      message: 'Cuenta confirmada correctamente. Ya puedes iniciar sesión en la app.',
+    };
+  }
+
+  /**
+   * Se mantiene por compatibilidad con enlaces viejos.
+   * El nuevo flujo NO usa este endpoint desde el correo.
+   */
   async setPasswordDomiciliario(dto: SetPasswordDomiciliarioDto) {
     const { token, password } = dto;
 

@@ -17,7 +17,10 @@ export class PedidosRepository extends Repository<Pedido> {
     super(Pedido, dataSource.createEntityManager());
   }
 
-  async findAllHistory(search: string | undefined, retentionCutoff: Date): Promise<Pedido[]> {
+  async findAllHistory(
+    search: string | undefined,
+    retentionCutoff: Date,
+  ): Promise<Pedido[]> {
     const queryBuilder = this.createQueryBuilder('pedido')
       .leftJoinAndSelect('pedido.usuario', 'usuario')
       .leftJoinAndSelect('pedido.comercio', 'comercio')
@@ -34,11 +37,28 @@ export class PedidosRepository extends Repository<Pedido> {
   }
 
   async findAssignmentCandidates(): Promise<DomiciliarioAssignmentCandidate[]> {
+    return this.createAvailableCourierQuery().getRawMany<DomiciliarioAssignmentCandidate>();
+  }
+
+  async findAvailableCourierById(
+    domiciliarioId: string,
+  ): Promise<DomiciliarioAssignmentCandidate | null> {
+    const result = await this.createAvailableCourierQuery()
+      .andWhere('usuario.id = :domiciliarioId', { domiciliarioId })
+      .getRawOne<DomiciliarioAssignmentCandidate>();
+
+    return result ?? null;
+  }
+
+  private createAvailableCourierQuery() {
     return this.dataSource
       .createQueryBuilder()
       .select('usuario.id', 'id')
       .addSelect('usuario.nombre', 'nombre')
-      .addSelect('MAX(COALESCE(pedido.assigned_at, pedido.created_at))', 'lastAssignedAt')
+      .addSelect(
+        'MAX(COALESCE(pedido.assigned_at, pedido.created_at))',
+        'lastAssignedAt',
+      )
       .from(Usuario, 'usuario')
       .leftJoin(Pedido, 'pedido', 'pedido.usuario_id = usuario.id')
       .leftJoin(
@@ -52,7 +72,6 @@ export class PedidosRepository extends Repository<Pedido> {
       .andWhere('usuario.email_confirmado = true')
       .andWhere('activePedido.id IS NULL')
       .groupBy('usuario.id')
-      .addGroupBy('usuario.nombre')
-      .getRawMany<DomiciliarioAssignmentCandidate>();
+      .addGroupBy('usuario.nombre');
   }
 }

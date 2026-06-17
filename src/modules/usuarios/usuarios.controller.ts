@@ -19,6 +19,7 @@ import { Rol } from './enums/rol.enum';
 import { Usuario } from './entities/usuario.entity';
 import { CreateDomiciliarioDto } from './dto/create-domiciliario.dto';
 import { ToggleBloqueoDto } from './dto/toggle-bloqueo.dto';
+import { ChangePasswordDto } from './dto/change-password.dto';
 
 @Controller('usuarios')
 @UseGuards(JwtAuthGuard, RolesGuard)
@@ -28,6 +29,15 @@ export class DomiciliariosPublicController {
   @Get('perfil')
   getProfile(@CurrentUser() user: Usuario) {
     return this.usuariosService.findOneWithPedidos(user.id);
+  }
+
+  @Patch('perfil/password')
+  @Roles(Rol.ADMIN, Rol.DOMICILIARIO)
+  changeCurrentUserPassword(
+    @CurrentUser('id') userId: string,
+    @Body() dto: ChangePasswordDto,
+  ) {
+    return this.usuariosService.changeCurrentUserPassword(userId, dto);
   }
 
   @Post('domiciliarios')
@@ -48,11 +58,6 @@ export class DomiciliariosPublicController {
     return this.usuariosService.searchDomiciliarios(nombre || '');
   }
 
-  /**
-   * PATCH /usuarios/domiciliarios/:id/bloqueo
-   * Bloquea o desbloquea un domiciliario.
-   * Body: { bloqueado: boolean }
-   */
   @Patch('domiciliarios/:id/bloqueo')
   @Roles(Rol.ADMIN)
   toggleBloqueo(
@@ -61,7 +66,6 @@ export class DomiciliariosPublicController {
   ) {
     return this.usuariosService.toggleBloqueo(id, dto.bloqueado);
   }
-
 }
 
 @Controller('users')
@@ -77,5 +81,4 @@ export class UsersPublicController {
   createFirstAdmin(@Body() createUsuarioDto: CreateUsuarioDto) {
     return this.usuariosService.createFirstAdmin(createUsuarioDto);
   }
-
 }

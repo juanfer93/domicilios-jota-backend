@@ -87,7 +87,7 @@ describe('NotificationsService', () => {
         expect.objectContaining({
           to: 'ExponentPushToken[android-token]',
           channelId: 'orders-v2',
-          sound: 'jota_notification.mp3',
+          sound: 'default',
           title: 'Nuevo pedido asignado',
           body: 'Tienes un nuevo servicio en curso.',
           data: expect.objectContaining({ notificationId: 'notif-id', pedidoId: 'pedido-uuid', type: 'PEDIDO_ASIGNADO', createdAt: '2026-06-12T18:30:00.000Z' }),
@@ -107,7 +107,7 @@ describe('NotificationsService', () => {
 
       try {
         const result = await service.notifyUser('destinatario-uuid', { type: 'PEDIDO_ASIGNADO', pedidoId: 'pedido-uuid', title: 'Nuevo pedido asignado', body: 'Tienes un nuevo servicio en curso.' });
-        expect(result).toEqual({ ok: true, sent: 1 });
+        expect(result).toEqual({ ok: true, sent: 1, expoSent: 1 });
       } finally {
         global.fetch = originalFetch;
       }
@@ -127,7 +127,12 @@ describe('NotificationsService', () => {
       expoTokensRepo.findByUser.mockResolvedValue([{ token: 'ExponentPushToken[android-token]', platform: 'android' }]);
 
       try {
-        await expect(service.notifyUser('destinatario-uuid', { type: 'PEDIDO_ASIGNADO', pedidoId: 'pedido-uuid' })).resolves.toEqual({ ok: true, sent: 1 });
+        await expect(
+          service.notifyUser('destinatario-uuid', {
+            type: 'PEDIDO_ASIGNADO',
+            pedidoId: 'pedido-uuid',
+          }),
+        ).resolves.toEqual({ ok: true, sent: 1, expoSent: 1 });
       } finally {
         global.fetch = originalFetch;
       }

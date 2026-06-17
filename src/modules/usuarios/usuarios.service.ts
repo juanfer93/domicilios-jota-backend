@@ -1,13 +1,14 @@
 import {
+  BadRequestException,
   Injectable,
   ConflictException,
   NotFoundException,
-  ForbiddenException,
 } from '@nestjs/common';
 import * as bcrypt from 'bcrypt';
 import { UsuariosRepository } from './repositories/usuarios.repository';
 import { CreateUsuarioDto } from './dto/create-usuario.dto';
 import { CreateDomiciliarioDto } from './dto/create-domiciliario.dto';
+import { ChangePasswordDto } from './dto/change-password.dto';
 import { EmailService } from '../../common/email/email.service';
 import { Usuario } from './entities/usuario.entity';
 import { Rol } from './enums/rol.enum';
@@ -18,12 +19,13 @@ export class UsuariosService {
   constructor(
     private readonly usuariosRepository: UsuariosRepository,
     private readonly emailService: EmailService,
-  ) {}
+  ) { }
 
   async create(createUsuarioDto: CreateUsuarioDto): Promise<Usuario> {
     const { email, password, ...rest } = createUsuarioDto;
 
     const existingUser = await this.usuariosRepository.existsByEmail(email);
+
     if (existingUser) {
       throw new ConflictException('El email ya está registrado');
     }
@@ -77,7 +79,10 @@ export class UsuariosService {
       order: { createdAt: 'ASC' },
     });
 
-    return { hasAdmin: !!admin, adminName: admin?.nombre ?? null };
+    return {
+      hasAdmin: !!admin,
+      adminName: admin?.nombre ?? null,
+    };
   }
 
   async createFirstAdmin(createUsuarioDto: CreateUsuarioDto): Promise<Usuario> {
@@ -90,6 +95,7 @@ export class UsuariosService {
     const existingUser = await this.usuariosRepository.existsByEmail(
       createUsuarioDto.email,
     );
+
     if (existingUser) {
       throw new ConflictException('El email ya está registrado');
     }
@@ -119,12 +125,15 @@ export class UsuariosService {
     return Math.random().toString(36).slice(-10);
   }
 
-  async createDomiciliario(dto: CreateDomiciliarioDto): Promise<Usuario> {
+  async createDomiciliario(
+    dto: CreateDomiciliarioDto,
+  ): Promise<Usuario & { passwordTemporal: string }> {
     const { nombre, email } = dto;
 
     const existente = await this.usuariosRepository.findOne({
       where: { email },
     });
+
     if (existente) {
       throw new ConflictException('Ya existe un usuario con ese correo');
     }
@@ -155,19 +164,27 @@ export class UsuariosService {
       token,
     );
 
-    return guardado;
+    return Object.assign(guardado, { passwordTemporal });
   }
 
   async findAllDomiciliarios(): Promise<
-    Pick<Usuario, 'id' | 'nombre' | 'email' | 'bloqueado' | 'createdAt'>[]
+    Pick<
+      Usuario,
+      'id' | 'nombre' | 'email' | 'bloqueado' | 'email_confirmado' | 'createdAt'
+    >[]
   > {
-    const domiciliarios = await this.usuariosRepository.find({
+    return this.usuariosRepository.find({
       where: { rol: Rol.DOMICILIARIO },
-      select: ['id', 'nombre', 'email', 'bloqueado', 'createdAt'],
+      select: [
+        'id',
+        'nombre',
+        'email',
+        'bloqueado',
+        'email_confirmado',
+        'createdAt',
+      ],
       order: { createdAt: 'DESC' },
     });
-
-    return domiciliarios;
   }
 
   async searchDomiciliarios(
@@ -193,6 +210,7 @@ export class UsuariosService {
     }
 
     domi.bloqueado = bloqueado;
+
     const guardado = await this.usuariosRepository.save(domi);
 
     return {
@@ -201,6 +219,21 @@ export class UsuariosService {
       email: guardado.email,
       bloqueado: guardado.bloqueado,
       createdAt: guardado.createdAt,
+    };
+  }
+
+  async changeCurrentUserPassword(userId: string, dto: ChangePasswordDto) {
+    if (dto.password !== dto.confirmPassword) {
+      throw new BadRequestException('Las contraseñas no coinciden');
+    }
+
+    const usuario = await this.findOne(userId);
+    usuario.password = await this.hashPassword(dto.password);
+
+    await this.usuariosRepository.save(usuario);
+
+    return {
+      message: 'Contraseña actualizada correctamente.',
     };
   }
 
@@ -214,6 +247,7 @@ export class UsuariosService {
     usuario.email_confirmado = true;
     usuario.email_confirmacion_token = null;
     usuario.email_confirmacion_expira = null;
+
     await this.usuariosRepository.save(usuario);
   }
 }

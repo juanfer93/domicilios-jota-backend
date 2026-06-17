@@ -2,13 +2,20 @@ import { Injectable, Logger } from '@nestjs/common';
 import * as nodemailer from 'nodemailer';
 
 export function buildDomiciliarioAppOpenData(token: string) {
-  const backendUrl = (process.env.APP_INVITE_BASE_URL || process.env.BACKEND_PUBLIC_URL || 'http://localhost:3000/api/v1').replace(/\/$/, '');
+  const backendUrl = (
+    process.env.APP_INVITE_BASE_URL ||
+    process.env.BACKEND_PUBLIC_URL ||
+    'http://localhost:3000/api/v1'
+  ).replace(/\/$/, '');
+
   const appScheme = process.env.APP_SCHEME || 'jotadeliverymobile';
   const apkUrl = process.env.APK_DOWNLOAD_URL || '#';
-  const appPath = `auth/domiciliario/set-password?token=${encodeURIComponent(token)}`;
+  const encodedToken = encodeURIComponent(token);
+
   return {
-    inviteUrl: `${backendUrl}/auth/domiciliarios/open-app?token=${encodeURIComponent(token)}`,
-    appUrl: `${appScheme}:///${appPath}`,
+    confirmUrl: `${backendUrl}/auth/domiciliarios/confirm?token=${encodedToken}`,
+    inviteUrl: `${backendUrl}/auth/domiciliarios/confirm?token=${encodedToken}`,
+    appUrl: `${appScheme}:///login`,
     apkUrl,
   };
 }
@@ -30,27 +37,45 @@ export class EmailService {
     const secure = process.env.SMTP_SECURE === 'true';
 
     if (!host || !user || !pass) {
-      this.logger.warn('SMTP no configurado (SMTP_HOST/SMTP_USER/SMTP_PASS). Se hará solo log del email, no se enviará realmente.');
+      this.logger.warn(
+        'SMTP no configurado (SMTP_HOST/SMTP_USER/SMTP_PASS). Se hará solo log del email, no se enviará realmente.',
+      );
       return;
     }
 
-    this.transporter = nodemailer.createTransport({ host, port, secure, auth: { user, pass } });
+    this.transporter = nodemailer.createTransport({
+      host,
+      port,
+      secure,
+      auth: { user, pass },
+    });
   }
 
-  async enviarInvitacionDomiciliario(nombre: string, email: string, passwordTemporal: string, token: string) {
-    const { inviteUrl, appUrl, apkUrl } = buildDomiciliarioInvitationLinks(token);
-    const subject = 'Invitación como domiciliario';
+  async enviarInvitacionDomiciliario(
+    nombre: string,
+    email: string,
+    _passwordTemporal: string,
+    token: string,
+  ) {
+    const { confirmUrl, appUrl, apkUrl } =
+      buildDomiciliarioInvitationLinks(token);
+
+    const subject = 'Confirma tu cuenta de domiciliario';
+
     const text = `
 Hola ${nombre},
 
 Has sido registrado como domiciliario en la plataforma de Jota Delivery.
 
-Tu contraseña temporal es: ${passwordTemporal}
+Confirma tu cuenta aquí:
+${confirmUrl}
 
-Debes tener instalada la app para crear tu contraseña.
-Abre este enlace desde tu celular: ${inviteUrl}
+Instala la APK si aún no tienes la app:
+${apkUrl}
 
-Si no tienes la app instalada, instala la APK primero: ${apkUrl}
+Después de confirmar tu cuenta, entra a la app con el correo registrado y la clave temporal entregada por el administrador.
+
+Si quieres cambiar tu clave después, entra a Perfil dentro de la app.
 
 Si tú no esperabas este correo, puedes ignorarlo.
 
@@ -59,39 +84,57 @@ Saludos.
 
     const html = `
       <p>Hola <strong>${nombre}</strong>,</p>
+
       <p>Has sido registrado como <strong>domiciliario</strong> en la plataforma de Jota Delivery.</p>
-      <p>Tu contraseña temporal es: <strong>${passwordTemporal}</strong></p>
-      <p><strong>Importante:</strong> para crear tu contraseña debes tener instalada la app.</p>
+
       <p>
-        <a href="${inviteUrl}"
+        Primero confirma tu cuenta. Luego instala la APK si aún no tienes la app
+        e inicia sesión con el correo registrado y la clave temporal entregada por el administrador.
+      </p>
+
+      <p>
+        <a href="${confirmUrl}"
            style="display:inline-block;padding:12px 18px;background:#174A8B;color:#fff;
                   text-decoration:none;border-radius:8px;font-weight:700;">
-          Abrir app y crear contraseña
+          Confirmar cuenta
         </a>
       </p>
-      <p>Si el botón no abre la app, instala primero la APK y luego vuelve a abrir este correo.</p>
-      <p><a href="${apkUrl}">Instalar APK</a></p>
-      <p>Enlace directo de la app: <a href="${appUrl}">${appUrl}</a></p>
+
+      <p>
+        <a href="${apkUrl}"
+           style="display:inline-block;padding:12px 18px;background:#F0E2BD;color:#174A8B;
+                  text-decoration:none;border-radius:8px;font-weight:700;">
+          Instalar APK
+        </a>
+      </p>
+
+      <p>Si deseas cambiar tu clave, ve a <strong>Perfil</strong> dentro de la app.</p>
+      <p>Enlace directo para abrir la app: <a href="${appUrl}">${appUrl}</a></p>
       <p>Si tú no esperabas este correo, puedes ignorarlo.</p>
       <p>Saludos.</p>
     `;
 
-    this.logger.log(`Preparando email de invitacion para ${email} con enlace solo a app`);
+    this.logger.log(`Preparando email de confirmacion para domiciliario ${email}`);
 
     if (!this.transporter) {
-      this.logger.warn('No hay transporter de correo configurado. Solo se realizó log del mensaje, no se envió email real.');
+      this.logger.warn(
+        'No hay transporter de correo configurado. Solo se realizó log del mensaje, no se envió email real.',
+      );
       return;
     }
 
     try {
       await this.transporter.sendMail({
-        from: process.env.EMAIL_FROM || '"Plataforma de Domicilios" <no-reply@localhost>',
+        from:
+          process.env.EMAIL_FROM ||
+          '"Plataforma de Domicilios" <no-reply@localhost>',
         to: email,
         subject,
         text,
         html,
       });
-      this.logger.log(`Email de invitación enviado correctamente a ${email}`);
+
+      this.logger.log(`Email de confirmación enviado correctamente a ${email}`);
     } catch (error: unknown) {
       const message = error instanceof Error ? error.message : String(error);
       const stack = error instanceof Error ? error.stack : undefined;

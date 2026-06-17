@@ -33,6 +33,8 @@ describe('PedidosService', () => {
     find: jest.fn(),
     createQueryBuilder: jest.fn(),
     findAllHistory: jest.fn(),
+    findAssignmentCandidates: jest.fn(),
+    findAvailableCourierById: jest.fn(),
   };
 
   const notificationsService = {
@@ -47,6 +49,23 @@ describe('PedidosService', () => {
 
   beforeEach(() => {
     jest.clearAllMocks();
+
+    pedidosRepository.findAvailableCourierById.mockImplementation(
+      async (domiciliarioId: string) => ({
+        id: domiciliarioId,
+        nombre: 'Domiciliario Disponible',
+        lastAssignedAt: null,
+      }),
+    );
+
+    pedidosRepository.findAssignmentCandidates.mockResolvedValue([
+      {
+        id: 'domi-uuid',
+        nombre: 'Juan Domiciliario',
+        lastAssignedAt: null,
+      },
+    ]);
+
     service = new PedidosService(
       pedidosRepository as unknown as PedidosRepository,
       notificationsService as unknown as NotificationsService,
@@ -121,6 +140,22 @@ describe('PedidosService', () => {
       expect(notificationsService.notifyDomiciliarioAsignado).toHaveBeenCalledWith(
         expect.objectContaining({ domiciliarioId: baseDto.usuarioId }),
       );
+    });
+
+    it('rechaza asignacion manual si el domiciliario no esta disponible', async () => {
+      const dto = {
+        ...baseDto,
+        domiciliarioId: 'domi-ocupado',
+      };
+
+      pedidosRepository.findAvailableCourierById.mockResolvedValueOnce(null);
+
+      await expect(
+        service.createPedidoByAdmin(dto, 'admin-id'),
+      ).rejects.toThrow(BadRequestException);
+
+      expect(pedidosRepository.create).not.toHaveBeenCalled();
+      expect(pedidosRepository.save).not.toHaveBeenCalled();
     });
   });
 
@@ -311,7 +346,7 @@ describe('PedidosService', () => {
       expect(
         Math.abs(
           visibilityParams.finalCutoff.getTime() -
-            (Date.now() - 12 * 60 * 60 * 1000),
+          (Date.now() - 12 * 60 * 60 * 1000),
         ),
       ).toBeLessThan(1000);
       expect(queryBuilder.andWhere).toHaveBeenCalledWith(
@@ -344,7 +379,7 @@ describe('PedidosService', () => {
       expect(
         Math.abs(
           historyParams.retentionCutoff.getTime() -
-            (Date.now() - 60 * 24 * 60 * 60 * 1000),
+          (Date.now() - 60 * 24 * 60 * 60 * 1000),
         ),
       ).toBeLessThan(1000);
     });
