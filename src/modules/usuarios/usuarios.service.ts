@@ -157,12 +157,17 @@ export class UsuariosService {
 
     const guardado = await this.usuariosRepository.save(usuario);
 
-    await this.emailService.enviarInvitacionDomiciliario(
-      nombre,
-      email,
-      passwordTemporal,
-      token,
-    );
+    try {
+      await this.emailService.enviarInvitacionDomiciliario(
+        nombre,
+        email,
+        passwordTemporal,
+        token,
+      );
+    } catch (error) {
+      await this.usuariosRepository.remove(guardado);
+      throw error;
+    }
 
     return Object.assign(guardado, { passwordTemporal });
   }
