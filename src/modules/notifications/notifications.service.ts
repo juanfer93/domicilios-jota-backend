@@ -7,6 +7,8 @@ import { ExpoTokensRepository } from './repositories/expo-tokens.repository';
 import { CreatePushSubscriptionDto } from './dtos/create-push-subscription.dto';
 import { NotificationEntity } from './entities/notification.entity';
 
+const ORDERS_CHANNEL_ID = 'orders-v3';
+
 export interface NotificationPayload {
   notificationId?: string;
   type?: NotificationEntity['tipo'];
@@ -238,7 +240,7 @@ export class NotificationsService {
     const messages = tokens.map((t) => ({
       to: t.token,
       sound: 'default',
-      channelId: 'orders-v2',
+      channelId: ORDERS_CHANNEL_ID,
       title: message.title,
       body: message.body,
       data: message.data,
@@ -266,6 +268,9 @@ export class NotificationsService {
       }
 
       if (!rawText) {
+        this.logger.log(
+          `Expo Push enviado a usuario ${usuarioId} con canal ${ORDERS_CHANNEL_ID}`,
+        );
         return messages.length;
       }
 
@@ -283,8 +288,9 @@ export class NotificationsService {
       for (const ticket of tickets) {
         if (ticket?.status === 'error') {
           this.logger.error(
-            `Expo Push ticket error: ${ticket?.message || 'sin mensaje'
-            } ${JSON.stringify(ticket?.details ?? {})}`,
+            `Expo Push ticket error: ${ticket?.message || 'sin mensaje'} ${JSON.stringify(
+              ticket?.details ?? {},
+            )}`,
           );
         }
       }
