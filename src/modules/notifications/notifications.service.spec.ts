@@ -87,7 +87,7 @@ describe('NotificationsService', () => {
         expect.objectContaining({
           to: 'ExponentPushToken[android-token]',
           channelId: 'orders-v2',
-          sound: 'jota-notification.mp3',
+          sound: 'jota_notification.mp3',
           title: 'Nuevo pedido asignado',
           body: 'Tienes un nuevo servicio en curso.',
           data: expect.objectContaining({ notificationId: 'notif-id', pedidoId: 'pedido-uuid', type: 'PEDIDO_ASIGNADO', createdAt: '2026-06-12T18:30:00.000Z' }),
