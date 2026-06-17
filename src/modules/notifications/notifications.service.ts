@@ -1,4 +1,4 @@
-import { Injectable, Logger, NotFoundException, ForbiddenException } from '@nestjs/common';
+import { Injectable, Logger, NotFoundException } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import * as webpush from 'web-push';
 import { PushSubscriptionsRepository } from './repositories/push-subscriptions.repository';
@@ -75,7 +75,7 @@ export class NotificationsService {
   private async sendExpoPush(usuarioId: string, message: { title: string; body: string; data: NotificationPayload }): Promise<void> {
     const tokens = await this.expoTokensRepo.findByUser(usuarioId);
     if (tokens.length === 0) return;
-    const messages = tokens.map((t) => ({ to: t.token, sound: 'jota-notification.mp3', channelId: 'orders-v2', title: message.title, body: message.body, data: message.data }));
+    const messages = tokens.map((t) => ({ to: t.token, sound: 'jota_notification.mp3', channelId: 'orders-v2', title: message.title, body: message.body, data: message.data }));
     try {
       const response = await fetch('https://exp.host/--/api/v2/push/send', { method: 'POST', headers: { Accept: 'application/json', 'Accept-Encoding': 'gzip, deflate', 'Content-Type': 'application/json' }, body: JSON.stringify(messages) });
       if (!response.ok) this.logger.error(`Expo Push error ${response.status}: ${await response.text()}`);
