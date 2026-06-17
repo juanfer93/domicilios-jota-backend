@@ -1,11 +1,13 @@
-import { Injectable, Logger } from '@nestjs/common';
+import { Injectable, Logger, ServiceUnavailableException } from '@nestjs/common';
 import * as nodemailer from 'nodemailer';
+
+const DEFAULT_PUBLIC_API_URL = 'https://domicilios-jota-backend.vercel.app/api/v1';
 
 export function buildDomiciliarioAppOpenData(token: string) {
   const backendUrl = (
     process.env.APP_INVITE_BASE_URL ||
     process.env.BACKEND_PUBLIC_URL ||
-    'http://localhost:3000/api/v1'
+    DEFAULT_PUBLIC_API_URL
   ).replace(/\/$/, '');
 
   const appScheme = process.env.APP_SCHEME || 'jotadeliverymobile';
@@ -28,6 +30,7 @@ export function buildDomiciliarioInvitationLinks(token: string) {
 export class EmailService {
   private readonly logger = new Logger(EmailService.name);
   private transporter?: nodemailer.Transporter;
+  private readonly defaultFrom?: string;
 
   constructor() {
     const host = process.env.SMTP_HOST;
@@ -36,9 +39,11 @@ export class EmailService {
     const pass = process.env.SMTP_PASS;
     const secure = process.env.SMTP_SECURE === 'true';
 
+    this.defaultFrom = process.env.EMAIL_FROM || process.env.SMTP_FROM || user;
+
     if (!host || !user || !pass) {
       this.logger.warn(
-        'SMTP no configurado (SMTP_HOST/SMTP_USER/SMTP_PASS). Se hará solo log del email, no se enviará realmente.',
+        'SMTP no configurado (SMTP_HOST/SMTP_USER/SMTP_PASS). No se pueden enviar correos reales.',
       );
       return;
     }
@@ -56,7 +61,7 @@ export class EmailService {
     email: string,
     _passwordTemporal: string,
     token: string,
-  ) {
+  ): Promise<void> {
     const { confirmUrl, appUrl, apkUrl } =
       buildDomiciliarioInvitationLinks(token);
 
@@ -117,16 +122,15 @@ Saludos.
     this.logger.log(`Preparando email de confirmacion para domiciliario ${email}`);
 
     if (!this.transporter) {
-      this.logger.warn(
-        'No hay transporter de correo configurado. Solo se realizó log del mensaje, no se envió email real.',
+      throw new ServiceUnavailableException(
+        'El servicio de correo no está configurado. Revisa SMTP_HOST, SMTP_USER y SMTP_PASS.',
       );
-      return;
     }
 
     try {
-      await this.transporter.sendMail({
+      const info = await this.transporter.sendMail({
         from:
-          process.env.EMAIL_FROM ||
+          this.defaultFrom ||
           '"Plataforma de Domicilios" <no-reply@localhost>',
         to: email,
         subject,
@@ -134,11 +138,19 @@ Saludos.
         html,
       });
 
+      const rejected = Array.isArray(info.rejected) ? info.rejected : [];
+      if (rejected.length > 0) {
+        throw new Error(`Correo rechazado para: ${rejected.join(', ')}`);
+      }
+
       this.logger.log(`Email de confirmación enviado correctamente a ${email}`);
     } catch (error: unknown) {
       const message = error instanceof Error ? error.message : String(error);
       const stack = error instanceof Error ? error.stack : undefined;
       this.logger.error(`Error enviando email a ${email}: ${message}`, stack);
+      throw new ServiceUnavailableException(
+        'No se pudo enviar el correo de confirmación al domiciliario. Revisa la configuración SMTP.',
+      );
     }
   }
 }
