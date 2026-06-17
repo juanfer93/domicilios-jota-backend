@@ -63,8 +63,12 @@ describe('PedidosService automatic assignment', () => {
     randomSpy.mockRestore();
   });
 
-  it('lanza error si no hay domiciliarios disponibles', async () => {
+  it('no crea pedido si todos los domiciliarios estan ocupados o no hay disponibles', async () => {
     pedidosRepository.findAssignmentCandidates.mockResolvedValue([]);
+
     await expect(service.createPedidoByAdmin(baseDto, 'admin-uuid')).rejects.toThrow(BadRequestException);
+    await expect(service.createPedidoByAdmin(baseDto, 'admin-uuid')).rejects.toThrow('Todos los domiciliarios están ocupados');
+    expect(pedidosRepository.create).not.toHaveBeenCalled();
+    expect(pedidosRepository.save).not.toHaveBeenCalled();
   });
 });
