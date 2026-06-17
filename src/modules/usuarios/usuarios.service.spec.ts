@@ -1,4 +1,4 @@
-import { NotFoundException } from '@nestjs/common';
+import { NotFoundException, ServiceUnavailableException } from '@nestjs/common';
 import { UsuariosService } from './usuarios.service';
 import { UsuariosRepository } from './repositories/usuarios.repository';
 import { Rol } from './enums/rol.enum';
@@ -11,10 +11,12 @@ const makeDomiciliario = (overrides = {}): Partial<Usuario> => ({
   email: 'juan@domi.com',
   rol: Rol.DOMICILIARIO,
   bloqueado: false,
+  email_confirmado: false,
+  createdAt: new Date('2026-06-17T12:00:00.000Z'),
   ...overrides,
 });
 
-describe('UsuariosService - toggleBloqueo', () => {
+describe('UsuariosService - domiciliarios', () => {
   let service: UsuariosService;
 
   const usuariosRepository = {
@@ -41,6 +43,53 @@ describe('UsuariosService - toggleBloqueo', () => {
       usuariosRepository as unknown as UsuariosRepository,
       emailService,
     );
+  });
+
+  it('crea domiciliario, envia correo y retorna clave temporal', async () => {
+    const created = makeDomiciliario({ id: 'domi-created' });
+    const saved = makeDomiciliario({ id: 'domi-created' }) as Usuario;
+
+    usuariosRepository.findOne.mockResolvedValue(null);
+    usuariosRepository.create.mockReturnValue(created);
+    usuariosRepository.save.mockResolvedValue(saved);
+    (emailService.enviarInvitacionDomiciliario as jest.Mock).mockResolvedValue(undefined);
+
+    const result = await service.createDomiciliario({
+      nombre: 'Juan Domiciliario',
+      email: 'juan@domi.com',
+    });
+
+    expect(usuariosRepository.save).toHaveBeenCalledWith(created);
+    expect(emailService.enviarInvitacionDomiciliario).toHaveBeenCalledWith(
+      'Juan Domiciliario',
+      'juan@domi.com',
+      expect.any(String),
+      expect.any(String),
+    );
+    expect(result.passwordTemporal).toEqual(expect.any(String));
+    expect(usuariosRepository.remove).not.toHaveBeenCalled();
+  });
+
+  it('elimina el domiciliario si el correo de confirmacion falla', async () => {
+    const created = makeDomiciliario({ id: 'domi-created' });
+    const saved = makeDomiciliario({ id: 'domi-created' }) as Usuario;
+
+    usuariosRepository.findOne.mockResolvedValue(null);
+    usuariosRepository.create.mockReturnValue(created);
+    usuariosRepository.save.mockResolvedValue(saved);
+    usuariosRepository.remove.mockResolvedValue(saved);
+    (emailService.enviarInvitacionDomiciliario as jest.Mock).mockRejectedValue(
+      new ServiceUnavailableException('SMTP no configurado'),
+    );
+
+    await expect(
+      service.createDomiciliario({
+        nombre: 'Juan Domiciliario',
+        email: 'juan@domi.com',
+      }),
+    ).rejects.toThrow(ServiceUnavailableException);
+
+    expect(usuariosRepository.remove).toHaveBeenCalledWith(saved);
   });
 
   it('bloquea un domiciliario existente → retorna bloqueado=true', async () => {
