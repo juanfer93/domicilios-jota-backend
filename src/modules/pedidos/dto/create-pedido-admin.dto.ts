@@ -1,9 +1,9 @@
 import { IsNotEmpty, IsNumber, IsOptional, IsPositive, IsString, IsUUID, ValidateIf } from 'class-validator';
 
 export class CreatePedidoAdminDto {
+  @IsOptional()
   @IsUUID()
-  @IsNotEmpty()
-  usuarioId!: string;
+  usuarioId?: string;
 
   @IsUUID()
   @IsNotEmpty()
