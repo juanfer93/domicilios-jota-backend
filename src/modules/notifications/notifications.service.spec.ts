@@ -68,7 +68,7 @@ describe('NotificationsService', () => {
   });
 
   describe('notifyUser para Android', () => {
-    it('envia a Expo el canal orders-v2 con sonido custom y el payload persistido', async () => {
+    it('envia a Expo el canal orders-v3 y el payload persistido', async () => {
       const originalFetch = global.fetch;
       const fetchMock = jest.fn().mockResolvedValue({ ok: true });
       global.fetch = fetchMock as unknown as typeof fetch;
@@ -86,7 +86,7 @@ describe('NotificationsService', () => {
       expect(JSON.parse(request.body as string)).toEqual([
         expect.objectContaining({
           to: 'ExponentPushToken[android-token]',
-          channelId: 'orders-v2',
+          channelId: 'orders-v3',
           sound: 'default',
           title: 'Nuevo pedido asignado',
           body: 'Tienes un nuevo servicio en curso.',
