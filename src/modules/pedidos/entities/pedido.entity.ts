@@ -16,33 +16,19 @@ export class Pedido {
   @PrimaryGeneratedColumn('uuid')
   id: string;
 
-  @Column({ name: 'usuario_id', type: 'uuid' })
-  usuarioId: string;
+  @Column({ name: 'usuario_id', type: 'uuid', nullable: true })
+  usuarioId: string | null;
 
   @Column({ name: 'comercio_id', type: 'uuid' })
   comercioId: string;
 
-  @Column({
-    name: 'valor_domicilio',
-    type: 'decimal',
-    precision: 10,
-    scale: 2,
-  })
+  @Column({ name: 'valor_domicilio', type: 'decimal', precision: 10, scale: 2 })
   valorDomicilio: number;
 
-  @Column({
-    name: 'valor_final',
-    type: 'decimal',
-    precision: 10,
-    scale: 2,
-  })
+  @Column({ name: 'valor_final', type: 'decimal', precision: 10, scale: 2 })
   valorFinal: number;
 
-  @Column({
-    type: "enum",
-    enum: PedidoEstado,
-    default: PedidoEstado.EN_PROCESO,
-  })
+  @Column({ type: 'enum', enum: PedidoEstado, default: PedidoEstado.EN_PROCESO })
   estado: PedidoEstado;
 
   @CreateDateColumn({ name: 'created_at', type: 'timestamptz' })
@@ -51,15 +37,11 @@ export class Pedido {
   @UpdateDateColumn({ name: 'updated_at', type: 'timestamptz' })
   updatedAt: Date;
 
-  @ManyToOne(() => Usuario, (usuario) => usuario.pedidos, {
-    onDelete: 'CASCADE',
-  })
+  @ManyToOne(() => Usuario, (usuario) => usuario.pedidos, { nullable: true })
   @JoinColumn({ name: 'usuario_id' })
-  usuario: Usuario;
+  usuario: Usuario | null;
 
-  @ManyToOne(() => Comercio, (comercio) => comercio.pedidos, {
-    onDelete: 'CASCADE',
-  })
+  @ManyToOne(() => Comercio, (comercio) => comercio.pedidos)
   @JoinColumn({ name: 'comercio_id' })
   comercio: Comercio;
 
@@ -69,66 +51,27 @@ export class Pedido {
   @Column({ name: 'assigned_at', type: 'timestamptz', nullable: true })
   assignedAt: Date | null;
 
-  @Column({
-    name: 'direccion_destino',
-    type: 'varchar',
-    length: 255,
-    nullable: false,
-  })
+  @Column({ name: 'direccion_destino', type: 'varchar', length: 255, nullable: false })
   direccionDestino!: string;
 
-  @Column({
-    name: 'direccion_recogida',
-    type: 'varchar',
-    length: 255,
-    nullable: true,
-  })
+  @Column({ name: 'direccion_recogida', type: 'varchar', length: 255, nullable: true })
   direccionRecogida?: string;
 
-  @Column({
-    name: 'valor_pedido',
-    type: 'decimal',
-    precision: 10,
-    scale: 2,
-    nullable: true,
-  })
+  @Column({ name: 'valor_pedido', type: 'decimal', precision: 10, scale: 2, nullable: true })
   valorPedido?: number;
 
-  @Column({
-    name: 'cliente_nombre',
-    type: 'varchar',
-    length: 150,
-    nullable: true,
-  })
+  @Column({ name: 'cliente_nombre', type: 'varchar', length: 150, nullable: true })
   clienteNombre?: string;
 
-  @Column({
-    name: 'cliente_telefono',
-    type: 'varchar',
-    length: 20,
-    nullable: true,
-  })
+  @Column({ name: 'cliente_telefono', type: 'varchar', length: 20, nullable: true })
   clienteTelefono?: string;
 
-  @Column({
-    name: 'domiciliario_id',
-    type: 'uuid',
-    nullable: true,
-  })
+  @Column({ name: 'domiciliario_id', type: 'uuid', nullable: true })
   domiciliarioId?: string | null;
 
-  @Column({
-    name: 'direccion_entrega',
-    type: 'varchar',
-    length: 255,
-    nullable: true,
-  })
+  @Column({ name: 'direccion_entrega', type: 'varchar', length: 255, nullable: true })
   direccionEntrega?: string;
 
-  @Column({
-    name: 'detalles_adicionales',
-    type: 'text',
-    nullable: true,
-  })
+  @Column({ name: 'detalles_adicionales', type: 'text', nullable: true })
   detallesAdicionales?: string;
 }
