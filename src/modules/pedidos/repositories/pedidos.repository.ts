@@ -36,6 +36,44 @@ export class PedidosRepository extends Repository<Pedido> {
     return queryBuilder.orderBy('pedido.createdAt', 'DESC').getMany();
   }
 
+  async findAvailablePedidos(): Promise<Pedido[]> {
+    return this.createQueryBuilder('pedido')
+      .leftJoinAndSelect('pedido.usuario', 'usuario')
+      .leftJoinAndSelect('pedido.comercio', 'comercio')
+      .where('pedido.estado = :estado', { estado: PedidoEstado.EN_PROCESO })
+      .andWhere('pedido.usuario_id IS NULL')
+      .andWhere('pedido.domiciliario_id IS NULL')
+      .orderBy('pedido.created_at', 'ASC')
+      .getMany();
+  }
+
+  async takeAvailablePedido(
+    pedidoId: string,
+    domiciliarioId: string,
+  ): Promise<Pedido | null> {
+    const result = await this.createQueryBuilder()
+      .update(Pedido)
+      .set({
+        usuarioId: domiciliarioId,
+        domiciliarioId,
+        assignedAt: new Date(),
+      })
+      .where('id = :pedidoId', { pedidoId })
+      .andWhere('estado = :estado', { estado: PedidoEstado.EN_PROCESO })
+      .andWhere('usuario_id IS NULL')
+      .andWhere('domiciliario_id IS NULL')
+      .execute();
+
+    if (!result.affected) {
+      return null;
+    }
+
+    return this.findOne({
+      where: { id: pedidoId },
+      relations: ['usuario', 'comercio'],
+    });
+  }
+
   async findAssignmentCandidates(): Promise<DomiciliarioAssignmentCandidate[]> {
     return this.createAvailableCourierQuery().getRawMany<DomiciliarioAssignmentCandidate>();
   }
