@@ -35,12 +35,18 @@ export class PedidosController {
     return this.pedidosService.createPedidoByAdmin(dto, req.user.id);
   }
 
-  /**
-   * Cambiar estado de un pedido.
-   * Se pasa el actor (rol + id) al servicio para:
-   * - Validar propiedad si es DOMICILIARIO
-   * - Enviar la notificación al admin correcta
-   */
+  @Get('domiciliarios/disponibles')
+  @Roles(Rol.DOMICILIARIO)
+  getDisponiblesParaDomiciliario() {
+    return this.pedidosService.getPedidosDisponiblesDomiciliario();
+  }
+
+  @Patch(':id/tomar')
+  @Roles(Rol.DOMICILIARIO)
+  tomarPedidoDisponible(@Param('id') id: string, @Req() req: any) {
+    return this.pedidosService.tomarPedidoDisponible(id, req.user.id);
+  }
+
   @Patch(':id/estado')
   @Roles(Rol.ADMIN, Rol.DOMICILIARIO)
   updateEstado(
