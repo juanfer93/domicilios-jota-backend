@@ -12,11 +12,10 @@ const baseDto: CreatePedidoAdminDto = {
   direccionDestino: 'Calle 1 # 2-3',
 };
 
-describe('PedidosService automatic and manual assignment', () => {
+describe('PedidosService queue and manual assignment', () => {
   const pedidosRepository = {
     create: jest.fn(),
     save: jest.fn(),
-    findAssignmentCandidates: jest.fn(),
     findAvailableCourierById: jest.fn(),
   };
 
@@ -46,65 +45,28 @@ describe('PedidosService automatic and manual assignment', () => {
     }));
 
     usuariosService.findOne.mockResolvedValue({
-      id: 'domi-old',
-      nombre: 'Domi Old',
+      id: 'domi-manual',
+      nombre: 'Domi Manual',
     });
 
-    notificationsService.notifyDomiciliarioAsignado.mockResolvedValue(
-      undefined,
-    );
+    notificationsService.notifyDomiciliarioAsignado.mockResolvedValue(undefined);
+    jest.spyOn(service as any, 'notifyPedidoDisponible').mockResolvedValue(undefined);
+    jest.spyOn(service as any, 'notifyAssignedDomiciliario').mockResolvedValue(undefined);
   });
 
-  it('prioriza el domiciliario libre que lleva mas tiempo sin pedido', async () => {
-    pedidosRepository.findAssignmentCandidates.mockResolvedValue([
-      {
-        id: 'domi-recent',
-        nombre: 'Domi Recent',
-        lastAssignedAt: '2026-06-16T12:00:00.000Z',
-      },
-      {
-        id: 'domi-old',
-        nombre: 'Domi Old',
-        lastAssignedAt: '2026-06-10T12:00:00.000Z',
-      },
-    ]);
-
+  it('crea pedido libre sin asignacion cuando el admin no escoge domiciliario', async () => {
     await service.createPedidoByAdmin(baseDto, 'admin-uuid');
 
+    expect(pedidosRepository.findAvailableCourierById).not.toHaveBeenCalled();
     expect(pedidosRepository.create).toHaveBeenCalledWith(
       expect.objectContaining({
-        usuarioId: 'domi-old',
-        domiciliarioId: 'domi-old',
+        usuarioId: null,
+        domiciliarioId: null,
+        assignedBy: 'admin-uuid',
+        assignedAt: null,
       }),
     );
-  });
-
-  it('elige aleatoriamente cuando dos domiciliarios libres empatan', async () => {
-    const randomSpy = jest.spyOn(Math, 'random').mockReturnValue(0.75);
-
-    pedidosRepository.findAssignmentCandidates.mockResolvedValue([
-      {
-        id: 'domi-a',
-        nombre: 'Domi A',
-        lastAssignedAt: null,
-      },
-      {
-        id: 'domi-b',
-        nombre: 'Domi B',
-        lastAssignedAt: null,
-      },
-    ]);
-
-    await service.createPedidoByAdmin(baseDto, 'admin-uuid');
-
-    expect(pedidosRepository.create).toHaveBeenCalledWith(
-      expect.objectContaining({
-        usuarioId: 'domi-b',
-        domiciliarioId: 'domi-b',
-      }),
-    );
-
-    randomSpy.mockRestore();
+    expect((service as any).notifyPedidoDisponible).toHaveBeenCalledWith('pedido-uuid');
   });
 
   it('permite asignacion manual si el domiciliario esta libre', async () => {
@@ -130,7 +92,12 @@ describe('PedidosService automatic and manual assignment', () => {
       expect.objectContaining({
         usuarioId: 'domi-manual',
         domiciliarioId: 'domi-manual',
+        assignedBy: 'admin-uuid',
       }),
+    );
+    expect((service as any).notifyAssignedDomiciliario).toHaveBeenCalledWith(
+      'domi-manual',
+      'pedido-uuid',
     );
   });
 
@@ -145,17 +112,6 @@ describe('PedidosService automatic and manual assignment', () => {
         },
         'admin-uuid',
       ),
-    ).rejects.toThrow(BadRequestException);
-
-    expect(pedidosRepository.create).not.toHaveBeenCalled();
-    expect(pedidosRepository.save).not.toHaveBeenCalled();
-  });
-
-  it('no crea pedido si todos los domiciliarios estan ocupados o no hay disponibles', async () => {
-    pedidosRepository.findAssignmentCandidates.mockResolvedValue([]);
-
-    await expect(
-      service.createPedidoByAdmin(baseDto, 'admin-uuid'),
     ).rejects.toThrow(BadRequestException);
 
     expect(pedidosRepository.create).not.toHaveBeenCalled();
