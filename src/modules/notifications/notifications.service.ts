@@ -11,7 +11,7 @@ const ORDERS_CHANNEL_ID = 'orders-v3';
 
 export interface NotificationPayload {
   notificationId?: string;
-  type?: NotificationEntity['tipo'];
+  type?: NotificationEntity['tipo'] | 'PEDIDO_DISPONIBLE' | 'PEDIDO_TOMADO';
   pedidoId?: string;
   title?: string;
   body?: string;
@@ -19,6 +19,9 @@ export interface NotificationPayload {
   estado?: string;
   domiciliarioId?: string;
   domiciliarioNombre?: string;
+  comercioNombre?: string;
+  direccionRecogida?: string;
+  direccionDestino?: string;
   createdAt?: string;
 }
 
@@ -165,6 +168,41 @@ export class NotificationsService {
     };
   }
 
+  async notifyPedidoDisponible(params: {
+    domiciliarioIds: string[];
+    pedidoId: string;
+    comercioNombre: string;
+    direccionRecogida: string;
+    direccionDestino: string;
+  }): Promise<void> {
+    const titulo = 'Nuevo pedido disponible';
+    const cuerpo = `Recoger en ${params.comercioNombre}. Entregar en ${params.direccionDestino}.`;
+
+    await Promise.all(
+      params.domiciliarioIds.map((domiciliarioId) =>
+        this.notifyUser(
+          domiciliarioId,
+          {
+            type: 'PEDIDO_DISPONIBLE',
+            pedidoId: params.pedidoId,
+            title: titulo,
+            body: cuerpo,
+            url: '/profile',
+            comercioNombre: params.comercioNombre,
+            direccionRecogida: params.direccionRecogida,
+            direccionDestino: params.direccionDestino,
+          },
+          {
+            tipo: 'PEDIDO_DISPONIBLE' as NotificationEntity['tipo'],
+            titulo,
+            cuerpo,
+            pedidoId: params.pedidoId,
+          },
+        ),
+      ),
+    );
+  }
+
   async notifyDomiciliarioAsignado(params: {
     domiciliarioId: string;
     domiciliarioNombre: string;
@@ -189,6 +227,41 @@ export class NotificationsService {
       cuerpo,
       pedidoId: params.pedidoId,
     });
+  }
+
+  async notifyAdminPedidoTomado(params: {
+    adminId: string | null;
+    domiciliarioNombre: string;
+    pedidoId: string;
+    comercioNombre: string;
+    direccionDestino: string;
+  }): Promise<void> {
+    if (!params.adminId) {
+      return;
+    }
+
+    const titulo = 'Pedido tomado';
+    const cuerpo = `${params.domiciliarioNombre} cogio el pedido de ${params.comercioNombre} para ${params.direccionDestino}.`;
+
+    await this.notifyUser(
+      params.adminId,
+      {
+        type: 'PEDIDO_TOMADO',
+        pedidoId: params.pedidoId,
+        title: titulo,
+        body: cuerpo,
+        domiciliarioNombre: params.domiciliarioNombre,
+        comercioNombre: params.comercioNombre,
+        direccionDestino: params.direccionDestino,
+        url: `/delivery?pedidoId=${params.pedidoId}`,
+      },
+      {
+        tipo: 'PEDIDO_TOMADO' as NotificationEntity['tipo'],
+        titulo,
+        cuerpo,
+        pedidoId: params.pedidoId,
+      },
+    );
   }
 
   async notifyAdminEstadoCambiado(params: {
