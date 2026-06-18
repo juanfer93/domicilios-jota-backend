@@ -1,20 +1,19 @@
 import {
   BadRequestException,
+  ConflictException,
   ForbiddenException,
   Injectable,
   Logger,
   NotFoundException,
 } from '@nestjs/common';
-import {
-  DomiciliarioAssignmentCandidate,
-  PedidosRepository,
-} from './repositories/pedidos.repository';
+import { PedidosRepository } from './repositories/pedidos.repository';
 import { CreatePedidoAdminDto } from './dto/create-pedido-admin.dto';
 import { Pedido } from './entities/pedido.entity';
 import { PedidoEstado } from './enums/estado-pedido.enum';
 import { NotificationsService } from '../notifications/notifications.service';
 import { UsuariosService } from '../usuarios/usuarios.service';
 import { Rol } from '../usuarios/enums/rol.enum';
+import { Usuario } from '../usuarios/entities/usuario.entity';
 import { getColombiaDayRange } from '../../common/time/colombia-time';
 
 @Injectable()
@@ -50,11 +49,15 @@ export class PedidosService {
     return query.orderBy('p.updated_at', 'DESC').getMany();
   }
 
+  async getPedidosDisponiblesDomiciliario() {
+    return this.pedidosRepository.findAvailablePedidos();
+  }
+
   async createPedidoByAdmin(dto: CreatePedidoAdminDto, adminId: string) {
-    const domiciliarioId = await this.resolveDomiciliarioId(dto);
+    const manualDomiciliarioId = await this.resolveManualDomiciliarioId(dto);
 
     const pedido = this.pedidosRepository.create({
-      usuarioId: domiciliarioId,
+      usuarioId: manualDomiciliarioId,
       comercioId: dto.comercioId,
       valorFinal: dto.valorFinal,
       valorDomicilio: dto.valorDomicilio ?? 0,
@@ -63,19 +66,46 @@ export class PedidosService {
       valorPedido: dto.valorPedido,
       clienteNombre: dto.clienteNombre,
       clienteTelefono: dto.clienteTelefono,
-      domiciliarioId,
+      domiciliarioId: manualDomiciliarioId,
       direccionEntrega: dto.direccionEntrega,
       detallesAdicionales: dto.detallesAdicionales,
       estado: PedidoEstado.EN_PROCESO,
       assignedBy: adminId,
-      assignedAt: new Date(),
+      assignedAt: manualDomiciliarioId ? new Date() : null,
     });
 
     const pedidoGuardado = await this.pedidosRepository.save(pedido);
 
-    await this.notifyAssignedDomiciliario(domiciliarioId, pedidoGuardado.id);
+    if (manualDomiciliarioId) {
+      await this.notifyAssignedDomiciliario(manualDomiciliarioId, pedidoGuardado.id);
+    } else {
+      await this.notifyPedidoDisponible(pedidoGuardado.id);
+    }
 
     return pedidoGuardado;
+  }
+
+  async tomarPedidoDisponible(pedidoId: string, domiciliarioId: string) {
+    const current = await this.getCurrentPedidoForDomiciliario(domiciliarioId);
+
+    if (current) {
+      throw new BadRequestException(
+        'Ya tienes un pedido en curso. Finalízalo antes de tomar otro.',
+      );
+    }
+
+    const pedido = await this.pedidosRepository.takeAvailablePedido(
+      pedidoId,
+      domiciliarioId,
+    );
+
+    if (!pedido) {
+      throw new ConflictException('Este pedido ya fue asignado.');
+    }
+
+    await this.notifyAdminPedidoTomado(pedido, domiciliarioId);
+
+    return pedido;
   }
 
   async updateEstadoPedido(
@@ -182,7 +212,7 @@ export class PedidosService {
   async getCurrentPedidoForDomiciliario(usuarioId: string) {
     const pedidos = await this.pedidosRepository.find({
       where: {
-        usuario: { id: usuarioId },
+        usuarioId,
         estado: PedidoEstado.EN_PROCESO,
       },
       relations: ['usuario', 'comercio'],
@@ -193,53 +223,64 @@ export class PedidosService {
     return pedidos[0] ?? null;
   }
 
-  private async resolveDomiciliarioId(
+  private async resolveManualDomiciliarioId(
     dto: CreatePedidoAdminDto,
-  ): Promise<string> {
+  ): Promise<string | null> {
     const manualId = dto.domiciliarioId ?? dto.usuarioId;
 
-    if (manualId) {
-      const availableManualCourier =
-        await this.pedidosRepository.findAvailableCourierById(manualId);
-
-      if (!availableManualCourier) {
-        throw new BadRequestException(
-          'Ese domiciliario no está disponible. Puede estar ocupado, bloqueado o sin confirmar.',
-        );
-      }
-
-      return availableManualCourier.id;
-    }
-
-    const selected = this.pickAssignmentCandidate(
-      await this.pedidosRepository.findAssignmentCandidates(),
-    );
-
-    if (!selected) {
-      throw new BadRequestException(
-        'Todos los domiciliarios están ocupados o no hay domiciliarios disponibles. Intenta crear el pedido cuando alguno finalice su pedido actual.',
-      );
-    }
-
-    return selected.id;
-  }
-
-  private pickAssignmentCandidate(
-    candidates: DomiciliarioAssignmentCandidate[],
-  ): DomiciliarioAssignmentCandidate | null {
-    if (candidates.length === 0) {
+    if (!manualId) {
       return null;
     }
 
-    const ranked = candidates.map((candidate) => ({
-      candidate,
-      lastTime: this.toAssignmentTime(candidate.lastAssignedAt),
-    }));
+    const availableManualCourier =
+      await this.pedidosRepository.findAvailableCourierById(manualId);
 
-    const oldestTime = Math.min(...ranked.map((item) => item.lastTime));
-    const tied = ranked.filter((item) => item.lastTime === oldestTime);
+    if (!availableManualCourier) {
+      throw new BadRequestException(
+        'Ese domiciliario no está disponible. Puede estar ocupado, bloqueado o sin confirmar.',
+      );
+    }
 
-    return tied[Math.floor(Math.random() * tied.length)]?.candidate ?? null;
+    return availableManualCourier.id;
+  }
+
+  private async getNotifiableDomiciliarios() {
+    return this.pedidosRepository.manager
+      .createQueryBuilder()
+      .select('usuario.id', 'id')
+      .addSelect('usuario.nombre', 'nombre')
+      .from(Usuario, 'usuario')
+      .where('usuario.rol = :rol', { rol: Rol.DOMICILIARIO })
+      .andWhere('usuario.bloqueado = false')
+      .andWhere('usuario.email_confirmado = true')
+      .orderBy('usuario.nombre', 'ASC')
+      .getRawMany<{ id: string; nombre: string }>();
+  }
+
+  private async notifyPedidoDisponible(pedidoId: string) {
+    try {
+      const pedido = await this.pedidosRepository.findOne({
+        where: { id: pedidoId },
+        relations: ['comercio'],
+      });
+
+      if (!pedido) return;
+
+      const domiciliarios = await this.getNotifiableDomiciliarios();
+      const comercioNombre = pedido.comercio?.nombre ?? 'Comercio';
+      const direccionRecogida = pedido.direccionRecogida ?? pedido.comercio?.direccion ?? comercioNombre;
+
+      await this.notificationsService.notifyPedidoDisponible({
+        domiciliarioIds: domiciliarios.map((d) => d.id),
+        pedidoId,
+        comercioNombre,
+        direccionRecogida,
+        direccionDestino: pedido.direccionDestino,
+      });
+    } catch (error: unknown) {
+      const msg = error instanceof Error ? error.message : String(error);
+      this.logger.error(`No se pudo notificar pedido disponible ${pedidoId}: ${msg}`);
+    }
   }
 
   private async notifyAssignedDomiciliario(
@@ -260,6 +301,23 @@ export class PedidosService {
       this.logger.error(
         `No se pudo notificar al domiciliario del pedido ${pedidoId}: ${msg}`,
       );
+    }
+  }
+
+  private async notifyAdminPedidoTomado(pedido: Pedido, domiciliarioId: string) {
+    try {
+      const d = await this.usuariosService.findOne(domiciliarioId);
+
+      await this.notificationsService.notifyAdminPedidoTomado({
+        adminId: pedido.assignedBy,
+        domiciliarioNombre: d.nombre,
+        pedidoId: pedido.id,
+        comercioNombre: pedido.comercio?.nombre ?? 'Comercio',
+        direccionDestino: pedido.direccionDestino,
+      });
+    } catch (error: unknown) {
+      const msg = error instanceof Error ? error.message : String(error);
+      this.logger.error(`No se pudo notificar al admin que se tomó el pedido ${pedido.id}: ${msg}`);
     }
   }
 
@@ -285,17 +343,6 @@ export class PedidosService {
         `No se pudo notificar al admin del cambio de estado del pedido ${pedidoId}: ${msg}`,
       );
     }
-  }
-
-  private toAssignmentTime(value: Date | string | null): number {
-    if (!value) {
-      return 0;
-    }
-
-    const time =
-      value instanceof Date ? value.getTime() : new Date(value).getTime();
-
-    return Number.isFinite(time) ? time : 0;
   }
 
   private getColombiaRange(date: string) {
