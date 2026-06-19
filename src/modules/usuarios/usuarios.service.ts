@@ -150,9 +150,9 @@ export class UsuariosService {
       email,
       password: passwordHash,
       rol: Rol.DOMICILIARIO,
-      email_confirmado: false,
-      email_confirmacion_token: token,
-      email_confirmacion_expira: expira,
+      email_confirmado: true,
+      email_confirmacion_token: null,
+      email_confirmacion_expira: null,
     });
 
     const guardado = await this.usuariosRepository.save(usuario);

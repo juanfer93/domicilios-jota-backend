@@ -58,11 +58,6 @@ export class AuthService {
       throw new UnauthorizedException('Credenciales inválidas');
     }
 
-    if (usuario.rol === Rol.DOMICILIARIO && !usuario.email_confirmado) {
-      throw new UnauthorizedException(
-        'Debes confirmar tu cuenta antes de iniciar sesión',
-      );
-    }
 
     if (usuario.bloqueado) {
       throw new ForbiddenException(
@@ -108,11 +103,6 @@ export class AuthService {
       throw new UnauthorizedException('Credenciales inválidas');
     }
 
-    if (usuario.rol === Rol.DOMICILIARIO && !usuario.email_confirmado) {
-      throw new UnauthorizedException(
-        'Debes confirmar tu cuenta antes de iniciar sesión',
-      );
-    }
 
     if (usuario.bloqueado) {
       throw new ForbiddenException(
