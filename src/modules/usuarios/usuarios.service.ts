@@ -12,7 +12,7 @@ import { ChangePasswordDto } from './dto/change-password.dto';
 import { EmailService } from '../../common/email/email.service';
 import { Usuario } from './entities/usuario.entity';
 import { Rol } from './enums/rol.enum';
-import { randomUUID } from 'crypto';
+import { randomBytes } from 'crypto';
 
 @Injectable()
 export class UsuariosService {
@@ -122,7 +122,7 @@ export class UsuariosService {
   }
 
   private generarPasswordTemporal(): string {
-    return Math.random().toString(36).slice(-10);
+    return randomBytes(12).toString('base64url');
   }
 
   async createDomiciliario(
@@ -141,10 +141,6 @@ export class UsuariosService {
     const passwordTemporal = this.generarPasswordTemporal();
     const passwordHash = await this.hashPassword(passwordTemporal);
 
-    const token = randomUUID();
-    const expira = new Date();
-    expira.setHours(expira.getHours() + 24);
-
     const usuario = this.usuariosRepository.create({
       nombre,
       email,
@@ -162,7 +158,6 @@ export class UsuariosService {
         nombre,
         email,
         passwordTemporal,
-        token,
       );
     } catch (error) {
       await this.usuariosRepository.remove(guardado);

@@ -1,4 +1,12 @@
-import { buildDomiciliarioInvitationLinks } from './email.service';
+import * as nodemailer from 'nodemailer';
+import {
+  buildDomiciliarioInvitationLinks,
+  EmailService,
+} from './email.service';
+
+jest.mock('nodemailer', () => ({
+  createTransport: jest.fn(),
+}));
 
 describe('buildDomiciliarioInvitationLinks', () => {
   const originalAppScheme = process.env.APP_SCHEME;
@@ -24,5 +32,31 @@ describe('buildDomiciliarioInvitationLinks', () => {
       appUrl: 'jotadeliverymobile:///login',
       apkUrl: 'pending-apk-url',
     });
+  });
+
+  it('envia la clave temporal por correo sin incluir un enlace de confirmacion', async () => {
+    const sendMail = jest.fn().mockResolvedValue({ rejected: [] });
+    (nodemailer.createTransport as jest.Mock).mockReturnValue({ sendMail });
+    process.env.SMTP_HOST = 'smtp.example.com';
+    process.env.SMTP_USER = 'smtp-user';
+    process.env.SMTP_PASS = 'smtp-pass';
+    process.env.APK_DOWNLOAD_URL = 'https://jota.example/app.apk';
+
+    const service = new EmailService();
+
+    await service.enviarInvitacionDomiciliario(
+      'Domiciliario <uno>',
+      'domi@example.com',
+      'ClaveTemporal123',
+    );
+
+    expect(sendMail).toHaveBeenCalledWith(
+      expect.objectContaining({
+        subject: 'Tu acceso temporal a Jota Delivery',
+        text: expect.stringContaining('Clave temporal: ClaveTemporal123'),
+        html: expect.stringContaining('Domiciliario &lt;uno&gt;'),
+      }),
+    );
+    expect(sendMail.mock.calls[0][0].text).not.toContain('Confirma tu cuenta');
   });
 });

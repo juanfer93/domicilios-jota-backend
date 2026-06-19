@@ -64,9 +64,15 @@ describe('UsuariosService - domiciliarios', () => {
       'Juan Domiciliario',
       'juan@domi.com',
       expect.any(String),
-      expect.any(String),
     );
-    expect(result.passwordTemporal).toEqual(expect.any(String));
+    expect(result.passwordTemporal).toMatch(/^[A-Za-z0-9_-]{16}$/);
+    const passwordSentByEmail = (
+      emailService.enviarInvitacionDomiciliario as jest.Mock
+    ).mock.calls[0][2] as string;
+    const createdDomiciliario = usuariosRepository.create.mock.calls[0][0] as Usuario;
+    expect(
+      await service.validatePassword(passwordSentByEmail, createdDomiciliario.password),
+    ).toBe(true);
     expect(usuariosRepository.remove).not.toHaveBeenCalled();
   });
 

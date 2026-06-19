@@ -3,6 +3,9 @@ import * as nodemailer from 'nodemailer';
 
 const DEFAULT_PUBLIC_API_URL = 'https://domicilios-jota-backend.vercel.app/api/v1';
 
+/**
+ * Kept for the legacy password-setup link; new invitations log in directly.
+ */
 export function buildDomiciliarioAppOpenData(token: string) {
   const backendUrl = (
     process.env.APP_INVITE_BASE_URL ||
@@ -24,6 +27,18 @@ export function buildDomiciliarioAppOpenData(token: string) {
 
 export function buildDomiciliarioInvitationLinks(token: string) {
   return buildDomiciliarioAppOpenData(token);
+}
+
+function escapeHtml(value: string): string {
+  const entities: Record<string, string> = {
+    '&': '&amp;',
+    '<': '&lt;',
+    '>': '&gt;',
+    "'": '&#39;',
+    '"': '&quot;',
+  };
+
+  return value.replace(/[&<>'"]/g, (character) => entities[character]);
 }
 
 @Injectable()
@@ -59,28 +74,28 @@ export class EmailService {
   async enviarInvitacionDomiciliario(
     nombre: string,
     email: string,
-    _passwordTemporal: string,
-    token: string,
+    passwordTemporal: string,
   ): Promise<void> {
-    const { confirmUrl, appUrl, apkUrl } =
-      buildDomiciliarioInvitationLinks(token);
-
-    const subject = 'Confirma tu cuenta de domiciliario';
+    const appScheme = process.env.APP_SCHEME || 'jotadeliverymobile';
+    const appUrl = `${appScheme}:///login`;
+    const apkUrl = process.env.APK_DOWNLOAD_URL || '#';
+    const subject = 'Tu acceso temporal a Jota Delivery';
 
     const text = `
 Hola ${nombre},
 
 Has sido registrado como domiciliario en la plataforma de Jota Delivery.
 
-Confirma tu cuenta aquí:
-${confirmUrl}
+Ya puedes iniciar sesión con estas credenciales temporales:
 
-Instala la APK si aún no tienes la app:
+Correo: ${email}
+Clave temporal: ${passwordTemporal}
+
+Instala la APK si aún no la tienes:
 ${apkUrl}
 
-Después de confirmar tu cuenta, entra a la app con el correo registrado y la clave temporal entregada por el administrador.
-
-Si quieres cambiar tu clave después, entra a Perfil dentro de la app.
+Por seguridad, cambia esta clave desde Perfil después de iniciar sesión.
+Enlace directo para abrir la app: ${appUrl}
 
 Si tú no esperabas este correo, puedes ignorarlo.
 
@@ -88,38 +103,32 @@ Saludos.
     `.trim();
 
     const html = `
-      <p>Hola <strong>${nombre}</strong>,</p>
+      <p>Hola <strong>${escapeHtml(nombre)}</strong>,</p>
 
       <p>Has sido registrado como <strong>domiciliario</strong> en la plataforma de Jota Delivery.</p>
 
-      <p>
-        Primero confirma tu cuenta. Luego instala la APK si aún no tienes la app
-        e inicia sesión con el correo registrado y la clave temporal entregada por el administrador.
-      </p>
+      <p>Ya puedes iniciar sesión con estas credenciales temporales:</p>
 
       <p>
-        <a href="${confirmUrl}"
-           style="display:inline-block;padding:12px 18px;background:#174A8B;color:#fff;
-                  text-decoration:none;border-radius:8px;font-weight:700;">
-          Confirmar cuenta
-        </a>
+        <strong>Correo:</strong> ${escapeHtml(email)}<br />
+        <strong>Clave temporal:</strong> <code>${escapeHtml(passwordTemporal)}</code>
       </p>
 
       <p>
         <a href="${apkUrl}"
-           style="display:inline-block;padding:12px 18px;background:#F0E2BD;color:#174A8B;
+           style="display:inline-block;padding:12px 18px;background:#174A8B;color:#fff;
                   text-decoration:none;border-radius:8px;font-weight:700;">
           Instalar APK
         </a>
       </p>
 
-      <p>Si deseas cambiar tu clave, ve a <strong>Perfil</strong> dentro de la app.</p>
+      <p>Por seguridad, cambia esta clave desde <strong>Perfil</strong> dentro de la app después de iniciar sesión.</p>
       <p>Enlace directo para abrir la app: <a href="${appUrl}">${appUrl}</a></p>
       <p>Si tú no esperabas este correo, puedes ignorarlo.</p>
       <p>Saludos.</p>
     `;
 
-    this.logger.log(`Preparando email de confirmacion para domiciliario ${email}`);
+    this.logger.log(`Preparando email de acceso temporal para domiciliario ${email}`);
 
     if (!this.transporter) {
       throw new ServiceUnavailableException(
@@ -143,13 +152,13 @@ Saludos.
         throw new Error(`Correo rechazado para: ${rejected.join(', ')}`);
       }
 
-      this.logger.log(`Email de confirmación enviado correctamente a ${email}`);
+      this.logger.log(`Email de acceso temporal enviado correctamente a ${email}`);
     } catch (error: unknown) {
       const message = error instanceof Error ? error.message : String(error);
       const stack = error instanceof Error ? error.stack : undefined;
       this.logger.error(`Error enviando email a ${email}: ${message}`, stack);
       throw new ServiceUnavailableException(
-        'No se pudo enviar el correo de confirmación al domiciliario. Revisa la configuración SMTP.',
+        'No se pudo enviar el correo de acceso temporal al domiciliario. Revisa la configuración SMTP.',
       );
     }
   }

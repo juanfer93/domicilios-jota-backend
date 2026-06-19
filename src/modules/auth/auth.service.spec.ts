@@ -1,4 +1,3 @@
-import { UnauthorizedException } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import { AuthService } from './auth.service';
 import { Rol } from '../usuarios/enums/rol.enum';
@@ -22,7 +21,7 @@ describe('AuthService', () => {
     );
   });
 
-  it('rechaza el login de un domiciliario sin confirmar', async () => {
+  it('permite el login de un domiciliario con clave temporal sin confirmacion previa', async () => {
     usuariosService.findByEmail.mockResolvedValue({
       id: 'usuario-id',
       nombre: 'Domiciliario',
@@ -38,8 +37,8 @@ describe('AuthService', () => {
         email: 'domiciliario@example.com',
         password: 'password123',
       }),
-    ).rejects.toThrow(UnauthorizedException);
-    expect(jwtService.sign).not.toHaveBeenCalled();
+    ).resolves.toMatchObject({ accessToken: 'access-token' });
+    expect(jwtService.sign).toHaveBeenCalled();
   });
 
   it('mantiene el login para un domiciliario confirmado', async () => {

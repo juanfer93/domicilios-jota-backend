@@ -92,7 +92,7 @@ del proveedor, usando `NODE_ENV=production` y `DATABASE_SYNCHRONIZE=false`.
 
 El codigo se organiza por modulos dentro de `src/modules`:
 
-- `auth`: registro, login JWT y confirmacion de domiciliarios.
+- `auth`: registro, login JWT y compatibilidad con enlaces antiguos de domiciliarios.
 - `usuarios`: administradores, clientes y domiciliarios.
 - `comercios`: administracion y busqueda de comercios.
 - `pedidos`: asignacion, estados e historial de domicilios.
@@ -107,15 +107,14 @@ El acceso a datos se implementa mediante repositorios TypeORM inyectables. Los c
 - Las credenciales de acceso son correo y contrasena.
 - Las contrasenas deben tener al menos 8 caracteres.
 - Los endpoints protegidos usan JWT y, cuando corresponda, `RolesGuard`.
-- Un domiciliario no puede iniciar sesion hasta confirmar su cuenta.
+- Un domiciliario puede iniciar sesion inmediatamente con la clave temporal que recibe por correo.
 
 ### Domiciliarios
 
 1. Un administrador crea el domiciliario con nombre y correo.
-2. El backend genera una credencial temporal y un token con vigencia de 24 horas.
-3. El domiciliario recibe un enlace para establecer su contrasena.
-   El correo incluye un enlace web y un deep link para abrir la app Android.
-4. La cuenta queda confirmada al establecer la nueva contrasena.
+2. El backend genera una clave temporal criptograficamente segura y la envia al correo registrado.
+3. El domiciliario inicia sesion directamente con su correo y esa clave temporal.
+4. Despues del primer acceso, debe cambiar la clave desde Perfil.
 5. Al asignarle un pedido, el backend intenta enviar una notificacion Push.
 6. Un fallo de Push nunca debe impedir la creacion del pedido.
 
