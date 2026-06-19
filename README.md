@@ -31,6 +31,8 @@ Configura las variables de entorno requeridas antes de iniciar la aplicacion:
 - `SMTP_HOST`, `SMTP_PORT`, `SMTP_USER`, `SMTP_PASS`, `SMTP_SECURE`, `EMAIL_FROM`
 - `WEB_PUSH_PUBLIC_KEY`, `WEB_PUSH_PRIVATE_KEY`, `WEB_PUSH_SUBJECT`
 - `APP_SCHEME` (por defecto `jotadeliverymobile`)
+- `NOTIFICATIONS_DRY_RUN` opcional. Use `true` solo en desarrollo para imprimir
+  en consola las notificaciones que se enviarian a Expo sin llamar la red.
 
 ## Ejecucion y cambio de entorno
 
@@ -144,6 +146,19 @@ todos los canales que tenga registrados:
 Esto cubre las combinaciones web a web, web a Android, Android a web y Android
 a Android. Para recibir en ambos destinos, el usuario debe haber iniciado
 sesion y concedido permisos al menos una vez en cada plataforma.
+
+Para validar el flujo sin un dispositivo Android, inicie el backend con:
+
+```powershell
+$env:NOTIFICATIONS_DRY_RUN='true'
+pnpm run start:dev
+```
+
+Luego registre un token Expo de prueba para el usuario y ejecute acciones reales
+como crear un pedido libre, asignarlo, tomarlo o cambiar su estado. La consola
+mostrara entradas `[NOTIFICATIONS][TRACE]`, `[NOTIFICATIONS][EXPO]` y
+`[NOTIFICATIONS][DRY_RUN]` con el destinatario, pedido, titulo, cuerpo, estado,
+URL y payload que se habria enviado.
 
 ## Patrones de desarrollo
 

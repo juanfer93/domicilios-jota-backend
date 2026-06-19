@@ -32,4 +32,8 @@ export class ExpoTokensRepository extends Repository<ExpoTokenEntity> {
   async findByUser(usuarioId: string): Promise<ExpoTokenEntity[]> {
     return this.find({ where: { usuarioId, platform: 'android' } });
   }
+
+  async deleteByToken(token: string): Promise<void> {
+    await this.delete({ token });
+  }
 }

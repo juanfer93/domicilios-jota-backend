@@ -16,7 +16,11 @@ const sendWebPushMock = webpush.sendNotification as jest.MockedFunction<typeof w
 const makeConfig = (overrides: Record<string, string> = {}) => ({ get: jest.fn((key: string) => overrides[key] ?? undefined) });
 const makePushRepo = () => ({ upsertForUser: jest.fn(), deleteByEndpointForUser: jest.fn(), findByUser: jest.fn().mockResolvedValue([]), delete: jest.fn() });
 const makeNotificationsRepo = () => ({ saveNotification: jest.fn(), markAsRead: jest.fn(), findByDestinatario: jest.fn() });
-const makeExpoTokensRepo = () => ({ upsertForUser: jest.fn(), findByUser: jest.fn().mockResolvedValue([]) });
+const makeExpoTokensRepo = () => ({
+  upsertForUser: jest.fn(),
+  findByUser: jest.fn().mockResolvedValue([]),
+  deleteByToken: jest.fn(),
+});
 
 describe('NotificationsService', () => {
   let service: NotificationsService;
@@ -93,6 +97,79 @@ describe('NotificationsService', () => {
           data: expect.objectContaining({ notificationId: 'notif-id', pedidoId: 'pedido-uuid', type: 'PEDIDO_ASIGNADO', createdAt: '2026-06-12T18:30:00.000Z' }),
         }),
       ]);
+    });
+
+    it('elimina tokens Android invalidos cuando Expo responde DeviceNotRegistered', async () => {
+      const originalFetch = global.fetch;
+      const fetchMock = jest.fn().mockResolvedValue({
+        ok: true,
+        text: jest.fn().mockResolvedValue(JSON.stringify({
+          data: [
+            {
+              status: 'error',
+              message: 'Device not registered',
+              details: { error: 'DeviceNotRegistered' },
+            },
+            { status: 'ok', id: 'ticket-ok' },
+          ],
+        })),
+      });
+      global.fetch = fetchMock as unknown as typeof fetch;
+      expoTokensRepo.findByUser.mockResolvedValue([
+        { token: 'ExponentPushToken[token-viejo]', platform: 'android' },
+        { token: 'ExponentPushToken[token-activo]', platform: 'android' },
+      ]);
+
+      try {
+        const result = await service.notifyUser('user-uuid', {
+          type: 'PEDIDO_ASIGNADO',
+          pedidoId: 'pedido-uuid',
+          title: 'Nuevo pedido asignado',
+          body: 'Tienes un nuevo servicio en curso.',
+        });
+
+        expect(result.expoSent).toBe(1);
+      } finally {
+        global.fetch = originalFetch;
+      }
+
+      expect(expoTokensRepo.deleteByToken).toHaveBeenCalledWith(
+        'ExponentPushToken[token-viejo]',
+      );
+      expect(expoTokensRepo.deleteByToken).not.toHaveBeenCalledWith(
+        'ExponentPushToken[token-activo]',
+      );
+    });
+
+    it('simula el envio Expo y no llama la red con NOTIFICATIONS_DRY_RUN=true', async () => {
+      const svc = new NotificationsService(
+        makeConfig({ NOTIFICATIONS_DRY_RUN: 'true' }) as unknown as ConfigService,
+        pushRepo as unknown as PushSubscriptionsRepository,
+        notificationsRepo as unknown as NotificationsRepository,
+        expoTokensRepo as unknown as ExpoTokensRepository,
+      );
+      const originalFetch = global.fetch;
+      const fetchMock = jest.fn();
+      global.fetch = fetchMock as unknown as typeof fetch;
+      expoTokensRepo.findByUser.mockResolvedValue([
+        { token: 'ExponentPushToken[token-dev]', platform: 'android' },
+      ]);
+
+      try {
+        const result = await svc.notifyUser('user-uuid', {
+          type: 'PEDIDO_ASIGNADO',
+          pedidoId: 'pedido-uuid',
+          title: 'Nuevo pedido asignado',
+          body: 'Tienes un nuevo servicio en curso.',
+          url: '/profile/current-delivery',
+        });
+
+        expect(result).toEqual({ ok: true, sent: 0, expoSent: 1 });
+      } finally {
+        global.fetch = originalFetch;
+      }
+
+      expect(fetchMock).not.toHaveBeenCalled();
     });
   });
 

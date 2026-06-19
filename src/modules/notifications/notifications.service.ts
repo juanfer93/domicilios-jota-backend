@@ -8,6 +8,7 @@ import { CreatePushSubscriptionDto } from './dtos/create-push-subscription.dto';
 import { NotificationEntity } from './entities/notification.entity';
 
 const ORDERS_CHANNEL_ID = 'orders-v3';
+const EXPO_PUSH_URL = 'https://exp.host/--/api/v2/push/send';
 
 export interface NotificationPayload {
   notificationId?: string;
@@ -130,6 +131,19 @@ export class NotificationsService {
 
     const subs = await this.pushRepo.findByUser(usuarioId);
     const body = JSON.stringify(fullPayload);
+    this.logger.log(
+      `[NOTIFICATIONS][TRACE] preparada ${JSON.stringify({
+        usuarioId,
+        webSubscriptions: subs.length,
+        type: fullPayload.type,
+        pedidoId: fullPayload.pedidoId,
+        estado: fullPayload.estado,
+        title: persistOptions?.titulo ?? fullPayload.title,
+        body: persistOptions?.cuerpo ?? fullPayload.body,
+        url: fullPayload.url,
+        notificationId: fullPayload.notificationId,
+      })}`,
+    );
 
     for (const sub of subs) {
       try {
@@ -319,8 +333,26 @@ export class NotificationsService {
       data: message.data,
     }));
 
+    this.logger.log(
+      `[NOTIFICATIONS][EXPO] preparada ${JSON.stringify({
+        usuarioId,
+        dryRun: this.isDryRunEnabled(),
+        tokenCount: tokens.length,
+        title: message.title,
+        body: message.body,
+        data: message.data,
+      })}`,
+    );
+
+    if (this.isDryRunEnabled()) {
+      this.logger.log(
+        `[NOTIFICATIONS][DRY_RUN] Expo Push simulado ${JSON.stringify(messages)}`,
+      );
+      return messages.length;
+    }
+
     try {
-      const response = await fetch('https://exp.host/--/api/v2/push/send', {
+      const response = await fetch(EXPO_PUSH_URL, {
         method: 'POST',
         headers: {
           Accept: 'application/json',
@@ -358,21 +390,39 @@ export class NotificationsService {
 
       const tickets = Array.isArray(parsed) ? parsed : parsed?.data ?? [];
 
-      for (const ticket of tickets) {
+      let successfulTickets = 0;
+
+      for (const [index, ticket] of tickets.entries()) {
         if (ticket?.status === 'error') {
           this.logger.error(
             `Expo Push ticket error: ${ticket?.message || 'sin mensaje'} ${JSON.stringify(
               ticket?.details ?? {},
             )}`,
           );
+
+          if (ticket?.details?.error === 'DeviceNotRegistered') {
+            const invalidToken = tokens[index]?.token;
+            if (invalidToken) {
+              await this.expoTokensRepo.deleteByToken(invalidToken);
+              this.logger.warn(
+                `Expo token invalido eliminado para usuario ${usuarioId}`,
+              );
+            }
+          }
+        } else if (ticket?.status === 'ok') {
+          successfulTickets += 1;
         }
       }
 
-      return messages.length;
+      return tickets.length > 0 ? successfulTickets : messages.length;
     } catch (err: unknown) {
       const messageError = err instanceof Error ? err.message : String(err);
       this.logger.error(`Error enviando Expo Push: ${messageError}`);
       return 0;
     }
+  }
+
+  private isDryRunEnabled(): boolean {
+    return this.config.get<string>('NOTIFICATIONS_DRY_RUN') === 'true';
   }
 }
