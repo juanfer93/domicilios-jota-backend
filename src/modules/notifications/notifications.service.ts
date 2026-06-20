@@ -326,7 +326,7 @@ export class NotificationsService {
 
     const messages = tokens.map((t) => ({
       to: t.token,
-      sound: 'default',
+      sound: 'jota_notifications.mp3',
       channelId: ORDERS_CHANNEL_ID,
       title: message.title,
       body: message.body,
