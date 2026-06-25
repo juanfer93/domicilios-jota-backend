@@ -7,7 +7,7 @@ import { ExpoTokensRepository } from './repositories/expo-tokens.repository';
 import { CreatePushSubscriptionDto } from './dtos/create-push-subscription.dto';
 import { NotificationEntity } from './entities/notification.entity';
 
-const ORDERS_CHANNEL_ID = 'orders-v3';
+const ORDERS_CHANNEL_ID = 'orders-v4';
 const EXPO_PUSH_URL = 'https://exp.host/--/api/v2/push/send';
 
 export interface NotificationPayload {
