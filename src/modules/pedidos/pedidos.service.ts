@@ -278,6 +278,7 @@ export class PedidosService {
         comercioNombre,
         direccionRecogida,
         direccionDestino: pedido.direccionDestino,
+        ganancia: Number(pedido.ganancia ?? pedido.valorDomicilio ?? 0),
       });
     } catch (error: unknown) {
       const msg = error instanceof Error ? error.message : String(error);
@@ -291,11 +292,20 @@ export class PedidosService {
   ) {
     try {
       const d = await this.usuariosService.findOne(domiciliarioId);
+      const pedido = await this.pedidosRepository.findOne({
+        where: { id: pedidoId },
+        relations: ['comercio'],
+      });
+      const comercioNombre = pedido?.comercio?.nombre ?? 'Comercio';
 
       await this.notificationsService.notifyDomiciliarioAsignado({
         domiciliarioId: d.id,
         domiciliarioNombre: d.nombre,
         pedidoId,
+        comercioNombre,
+        direccionRecogida: pedido?.direccionRecogida ?? pedido?.comercio?.direccion ?? comercioNombre,
+        direccionDestino: pedido?.direccionDestino,
+        ganancia: Number(pedido?.ganancia ?? pedido?.valorDomicilio ?? 0),
       });
     } catch (error: unknown) {
       const msg = error instanceof Error ? error.message : String(error);

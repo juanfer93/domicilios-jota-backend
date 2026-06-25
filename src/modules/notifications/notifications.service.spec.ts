@@ -223,8 +223,57 @@ describe('NotificationsService', () => {
       notificationsRepo.saveNotification.mockResolvedValue({ id: 'notif-id' });
       pushRepo.findByUser.mockResolvedValue([]);
       expoTokensRepo.findByUser.mockResolvedValue([]);
-      await service.notifyDomiciliarioAsignado({ domiciliarioId: 'domi-uuid', domiciliarioNombre: 'Juan', pedidoId: 'pedido-uuid' });
-      expect(notificationsRepo.saveNotification).toHaveBeenCalledWith(expect.objectContaining({ tipo: 'PEDIDO_ASIGNADO', destinatarioId: 'domi-uuid', pedidoId: 'pedido-uuid', datos: expect.objectContaining({ url: '/profile/current-delivery' }) }));
+      await service.notifyDomiciliarioAsignado({
+        domiciliarioId: 'domi-uuid',
+        domiciliarioNombre: 'Juan',
+        pedidoId: 'pedido-uuid',
+        comercioNombre: 'Buffalo Grill',
+        direccionRecogida: 'Cra 1 # 2-3',
+        direccionDestino: 'Calle 5 # 6-7',
+        ganancia: 9000,
+      });
+      expect(notificationsRepo.saveNotification).toHaveBeenCalledWith(expect.objectContaining({
+        tipo: 'PEDIDO_ASIGNADO',
+        destinatarioId: 'domi-uuid',
+        pedidoId: 'pedido-uuid',
+        datos: expect.objectContaining({
+          url: '/profile/current-delivery',
+          comercioNombre: 'Buffalo Grill',
+          direccionRecogida: 'Cra 1 # 2-3',
+          direccionDestino: 'Calle 5 # 6-7',
+          ganancia: 9000,
+          valorDomicilio: 9000,
+        }),
+      }));
+    });
+  });
+
+  describe('notifyPedidoDisponible', () => {
+    it('incluye la ganancia en el payload para el domiciliario', async () => {
+      notificationsRepo.saveNotification.mockResolvedValue({ id: 'notif-id' });
+      pushRepo.findByUser.mockResolvedValue([]);
+      expoTokensRepo.findByUser.mockResolvedValue([]);
+
+      await service.notifyPedidoDisponible({
+        domiciliarioIds: ['domi-uuid'],
+        pedidoId: 'pedido-uuid',
+        comercioNombre: 'Buffalo Grill',
+        direccionRecogida: 'Cra 1 # 2-3',
+        direccionDestino: 'Calle 5 # 6-7',
+        ganancia: 9000,
+      });
+
+      expect(notificationsRepo.saveNotification).toHaveBeenCalledWith(
+        expect.objectContaining({
+          tipo: 'PEDIDO_DISPONIBLE',
+          destinatarioId: 'domi-uuid',
+          pedidoId: 'pedido-uuid',
+          datos: expect.objectContaining({
+            ganancia: 9000,
+            valorDomicilio: 9000,
+          }),
+        }),
+      );
     });
   });
 

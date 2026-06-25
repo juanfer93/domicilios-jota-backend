@@ -23,6 +23,8 @@ export interface NotificationPayload {
   comercioNombre?: string;
   direccionRecogida?: string;
   direccionDestino?: string;
+  ganancia?: number;
+  valorDomicilio?: number;
   createdAt?: string;
 }
 
@@ -188,6 +190,7 @@ export class NotificationsService {
     comercioNombre: string;
     direccionRecogida: string;
     direccionDestino: string;
+    ganancia: number;
   }): Promise<void> {
     const titulo = 'Nuevo pedido disponible';
     const cuerpo = `Recoger en ${params.comercioNombre}. Entregar en ${params.direccionDestino}.`;
@@ -205,6 +208,8 @@ export class NotificationsService {
             comercioNombre: params.comercioNombre,
             direccionRecogida: params.direccionRecogida,
             direccionDestino: params.direccionDestino,
+            ganancia: params.ganancia,
+            valorDomicilio: params.ganancia,
           },
           {
             tipo: 'PEDIDO_DISPONIBLE' as NotificationEntity['tipo'],
@@ -221,6 +226,10 @@ export class NotificationsService {
     domiciliarioId: string;
     domiciliarioNombre: string;
     pedidoId: string;
+    comercioNombre?: string;
+    direccionRecogida?: string;
+    direccionDestino?: string;
+    ganancia?: number;
   }): Promise<void> {
     const titulo = 'Nuevo pedido asignado';
     const cuerpo = 'Tienes un nuevo servicio en curso. ¡Revísalo!';
@@ -233,6 +242,11 @@ export class NotificationsService {
       url: '/profile/current-delivery',
       domiciliarioId: params.domiciliarioId,
       domiciliarioNombre: params.domiciliarioNombre,
+      comercioNombre: params.comercioNombre,
+      direccionRecogida: params.direccionRecogida,
+      direccionDestino: params.direccionDestino,
+      ganancia: params.ganancia,
+      valorDomicilio: params.ganancia,
     };
 
     await this.notifyUser(params.domiciliarioId, payload, {
