@@ -2,6 +2,8 @@ import { Injectable } from '@nestjs/common';
 import { DataSource, Repository } from 'typeorm';
 import { Usuario } from '../entities/usuario.entity';
 import { Rol } from '../enums/rol.enum';
+import { Pedido } from '../../pedidos/entities/pedido.entity';
+import { PedidoEstado } from '../../pedidos/enums/estado-pedido.enum';
 
 @Injectable()
 export class UsuariosRepository extends Repository<Usuario> {
@@ -35,6 +37,27 @@ export class UsuariosRepository extends Repository<Usuario> {
       where: { id },
       relations: ['pedidos', 'pedidos.comercio'],
     });
+  }
+
+  async sumGananciaDiariaDomiciliario(
+    domiciliarioId: string,
+    start: Date,
+    end: Date,
+  ): Promise<number> {
+    const result = await this.dataSource
+      .createQueryBuilder()
+      .select('COALESCE(SUM(pedido.ganancia), 0)', 'total')
+      .from(Pedido, 'pedido')
+      .where('pedido.estado = :estado', { estado: PedidoEstado.HECHO })
+      .andWhere('pedido.updated_at >= :start', { start })
+      .andWhere('pedido.updated_at < :end', { end })
+      .andWhere(
+        '(pedido.usuario_id = :domiciliarioId OR pedido.domiciliario_id = :domiciliarioId)',
+        { domiciliarioId },
+      )
+      .getRawOne<{ total: string | number | null }>();
+
+    return Number(result?.total ?? 0);
   }
 
   async existsByEmail(email: string): Promise<boolean> {

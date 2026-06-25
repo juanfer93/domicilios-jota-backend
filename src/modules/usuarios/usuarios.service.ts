@@ -13,6 +13,7 @@ import { EmailService } from '../../common/email/email.service';
 import { Usuario } from './entities/usuario.entity';
 import { Rol } from './enums/rol.enum';
 import { randomBytes } from 'crypto';
+import { getColombiaDateKey, getColombiaDayRange } from '../../common/time/colombia-time';
 
 @Injectable()
 export class UsuariosService {
@@ -56,14 +57,26 @@ export class UsuariosService {
     return this.usuariosRepository.findByEmail(email);
   }
 
-  async findOneWithPedidos(id: string): Promise<Usuario> {
+  async findOneWithPedidos(id: string): Promise<Usuario & { gananciaDia?: number }> {
     const usuario = await this.usuariosRepository.findByIdWithPedidos(id);
 
     if (!usuario) {
       throw new NotFoundException(`Usuario con ID ${id} no encontrado`);
     }
 
-    return usuario;
+    if (usuario.rol !== Rol.DOMICILIARIO) {
+      return usuario;
+    }
+
+    const { start, end } = getColombiaDayRange(getColombiaDateKey());
+    const gananciaDia =
+      await this.usuariosRepository.sumGananciaDiariaDomiciliario(
+        usuario.id,
+        start,
+        end,
+      );
+
+    return Object.assign(usuario, { gananciaDia });
   }
 
   async validatePassword(

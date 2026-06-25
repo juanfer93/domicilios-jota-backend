@@ -30,6 +30,7 @@ describe('UsuariosService - domiciliarios', () => {
     findByEmail: jest.fn(),
     findByIdWithPedidos: jest.fn(),
     findDomiciliariosByNombre: jest.fn(),
+    sumGananciaDiariaDomiciliario: jest.fn(),
     count: jest.fn(),
   };
 
@@ -150,5 +151,33 @@ describe('UsuariosService - domiciliarios', () => {
 
     expect(usuariosRepository.findDomiciliariosByNombre).toHaveBeenCalledWith('juan');
     expect(result).toEqual(domiciliarios);
+  });
+
+  it('retorna ganancia diaria calculada para el perfil del domiciliario', async () => {
+    const domi = makeDomiciliario({ email_confirmado: true }) as Usuario;
+    usuariosRepository.findByIdWithPedidos.mockResolvedValue(domi);
+    usuariosRepository.sumGananciaDiariaDomiciliario.mockResolvedValue(18000);
+
+    const result = await service.findOneWithPedidos('domi-uuid');
+
+    expect(result.gananciaDia).toBe(18000);
+    expect(usuariosRepository.sumGananciaDiariaDomiciliario).toHaveBeenCalledWith(
+      'domi-uuid',
+      expect.any(Date),
+      expect.any(Date),
+    );
+  });
+
+  it('no calcula ganancia diaria para perfil administrador', async () => {
+    const admin = makeDomiciliario({
+      id: 'admin-uuid',
+      rol: Rol.ADMIN,
+    }) as Usuario;
+    usuariosRepository.findByIdWithPedidos.mockResolvedValue(admin);
+
+    const result = await service.findOneWithPedidos('admin-uuid');
+
+    expect(result).not.toHaveProperty('gananciaDia');
+    expect(usuariosRepository.sumGananciaDiariaDomiciliario).not.toHaveBeenCalled();
   });
 });
