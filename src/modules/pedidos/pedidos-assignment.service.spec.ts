@@ -9,6 +9,7 @@ const baseDto: CreatePedidoAdminDto = {
   comercioId: '1beb752b-8590-4c69-9cbe-bc7714a9ee94',
   valorFinal: 25000,
   valorDomicilio: 5000,
+  ganancia: 9000,
   direccionDestino: 'Calle 1 # 2-3',
 };
 
@@ -62,6 +63,8 @@ describe('PedidosService queue and manual assignment', () => {
       expect.objectContaining({
         usuarioId: null,
         domiciliarioId: null,
+        valorDomicilio: 9000,
+        ganancia: 9000,
         assignedBy: 'admin-uuid',
         assignedAt: null,
       }),
@@ -92,6 +95,8 @@ describe('PedidosService queue and manual assignment', () => {
       expect.objectContaining({
         usuarioId: 'domi-manual',
         domiciliarioId: 'domi-manual',
+        valorDomicilio: 9000,
+        ganancia: 9000,
         assignedBy: 'admin-uuid',
       }),
     );
@@ -116,5 +121,22 @@ describe('PedidosService queue and manual assignment', () => {
 
     expect(pedidosRepository.create).not.toHaveBeenCalled();
     expect(pedidosRepository.save).not.toHaveBeenCalled();
+  });
+
+  it('mantiene compatibilidad si un cliente anterior envia solo valorDomicilio', async () => {
+    const dtoAnterior = {
+      ...baseDto,
+      ganancia: undefined,
+      valorDomicilio: 5000,
+    };
+
+    await service.createPedidoByAdmin(dtoAnterior, 'admin-uuid');
+
+    expect(pedidosRepository.create).toHaveBeenCalledWith(
+      expect.objectContaining({
+        valorDomicilio: 5000,
+        ganancia: 5000,
+      }),
+    );
   });
 });

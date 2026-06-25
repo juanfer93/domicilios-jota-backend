@@ -25,6 +25,9 @@ export class Pedido {
   @Column({ name: 'valor_domicilio', type: 'decimal', precision: 10, scale: 2 })
   valorDomicilio: number;
 
+  @Column({ name: 'ganancia', type: 'decimal', precision: 10, scale: 2, default: 0 })
+  ganancia: number;
+
   @Column({ name: 'valor_final', type: 'decimal', precision: 10, scale: 2 })
   valorFinal: number;
 

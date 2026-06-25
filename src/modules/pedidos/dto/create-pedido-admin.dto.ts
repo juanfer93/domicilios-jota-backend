@@ -17,6 +17,11 @@ export class CreatePedidoAdminDto {
   @IsNumber()
   valorDomicilio?: number;
 
+  @IsOptional()
+  @IsNumber()
+  @IsPositive()
+  ganancia?: number;
+
   @IsString()
   @IsNotEmpty()
   direccionDestino!: string;

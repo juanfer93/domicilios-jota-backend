@@ -81,6 +81,7 @@ describe('PedidosService', () => {
       comercioId: '1beb752b-8590-4c69-9cbe-bc7714a9ee94',
       valorFinal: 25000,
       valorDomicilio: 5000,
+      ganancia: 9000,
       direccionDestino: 'Calle 1 # 2-3',
     };
 
@@ -93,6 +94,12 @@ describe('PedidosService', () => {
 
       const result = await service.createPedidoByAdmin(baseDto, 'admin-id');
       expect(result).toBe(pedidoGuardado);
+      expect(pedidosRepository.create).toHaveBeenCalledWith(
+        expect.objectContaining({
+          valorDomicilio: 9000,
+          ganancia: 9000,
+        }),
+      );
     });
 
     it('notifica al domiciliario cuando se asigna un domiciliarioId', async () => {

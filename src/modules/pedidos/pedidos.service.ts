@@ -55,12 +55,14 @@ export class PedidosService {
 
   async createPedidoByAdmin(dto: CreatePedidoAdminDto, adminId: string) {
     const manualDomiciliarioId = await this.resolveManualDomiciliarioId(dto);
+    const ganancia = dto.ganancia ?? dto.valorDomicilio ?? 0;
 
     const pedido = this.pedidosRepository.create({
       usuarioId: manualDomiciliarioId,
       comercioId: dto.comercioId,
       valorFinal: dto.valorFinal,
-      valorDomicilio: dto.valorDomicilio ?? 0,
+      valorDomicilio: ganancia,
+      ganancia,
       direccionDestino: dto.direccionDestino,
       direccionRecogida: dto.direccionRecogida,
       valorPedido: dto.valorPedido,

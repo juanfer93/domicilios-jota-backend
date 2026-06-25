@@ -84,6 +84,10 @@ las tablas de produccion, configura permanentemente:
 DATABASE_SYNCHRONIZE=false
 ```
 
+Para aplicar el campo `ganancia` en `pedidos`, inicia una sola vez el backend
+contra la base objetivo con `DATABASE_SYNCHRONIZE=true`, confirma que la columna
+`ganancia` exista, y vuelve inmediatamente a `DATABASE_SYNCHRONIZE=false`.
+
 En servicios como Vercel, Render o Railway, los archivos `.env` y `.env.prod`
 no se suben a GitHub. Las variables deben configurarse directamente en el panel
 del proveedor, usando `NODE_ENV=production` y `DATABASE_SYNCHRONIZE=false`.
