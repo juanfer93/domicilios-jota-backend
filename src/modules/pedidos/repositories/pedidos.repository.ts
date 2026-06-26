@@ -3,7 +3,10 @@ import { DataSource, Repository } from 'typeorm';
 import { Pedido } from '../entities/pedido.entity';
 import { Usuario } from '../../usuarios/entities/usuario.entity';
 import { Rol } from '../../usuarios/enums/rol.enum';
+import { DisponibilidadDomiciliario } from '../../usuarios/enums/disponibilidad-domiciliario.enum';
 import { PedidoEstado } from '../enums/estado-pedido.enum';
+
+const COURIER_PRESENCE_TTL_MS = 2 * 60 * 1000;
 
 export interface DomiciliarioAssignmentCandidate {
   id: string;
@@ -89,6 +92,8 @@ export class PedidosRepository extends Repository<Pedido> {
   }
 
   private createAvailableCourierQuery() {
+    const connectedAfter = new Date(Date.now() - COURIER_PRESENCE_TTL_MS);
+
     return this.dataSource
       .createQueryBuilder()
       .select('usuario.id', 'id')
@@ -108,6 +113,10 @@ export class PedidosRepository extends Repository<Pedido> {
       .where('usuario.rol = :rol', { rol: Rol.DOMICILIARIO })
       .andWhere('usuario.bloqueado = false')
       .andWhere('usuario.email_confirmado = true')
+      .andWhere('usuario.disponibilidad = :disponibilidad', {
+        disponibilidad: DisponibilidadDomiciliario.AVAILABLE,
+      })
+      .andWhere('usuario.last_seen_at >= :connectedAfter', { connectedAfter })
       .andWhere('activePedido.id IS NULL')
       .groupBy('usuario.id')
       .addGroupBy('usuario.nombre');

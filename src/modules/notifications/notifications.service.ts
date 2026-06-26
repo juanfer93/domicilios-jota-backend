@@ -297,6 +297,7 @@ export class NotificationsService {
     domiciliarioNombre: string;
     pedidoId: string;
     estado: string;
+    ganancia?: number;
   }): Promise<void> {
     if (!params.adminId) {
       return;
@@ -312,6 +313,8 @@ export class NotificationsService {
       body: cuerpo,
       estado: params.estado,
       domiciliarioNombre: params.domiciliarioNombre,
+      ganancia: params.ganancia,
+      valorDomicilio: params.ganancia,
       url: `/delivery?pedidoId=${params.pedidoId}`,
     };
 

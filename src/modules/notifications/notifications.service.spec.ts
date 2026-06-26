@@ -282,8 +282,8 @@ describe('NotificationsService', () => {
       notificationsRepo.saveNotification.mockResolvedValue({ id: 'notif-id' });
       pushRepo.findByUser.mockResolvedValue([]);
       expoTokensRepo.findByUser.mockResolvedValue([]);
-      await service.notifyAdminEstadoCambiado({ adminId: 'admin-uuid', domiciliarioNombre: 'Juan', pedidoId: 'pedido-uuid', estado: 'HECHO' });
-      expect(notificationsRepo.saveNotification).toHaveBeenCalledWith(expect.objectContaining({ tipo: 'PEDIDO_ESTADO_ACTUALIZADO', destinatarioId: 'admin-uuid', datos: expect.objectContaining({ url: '/delivery?pedidoId=pedido-uuid' }) }));
+      await service.notifyAdminEstadoCambiado({ adminId: 'admin-uuid', domiciliarioNombre: 'Juan', pedidoId: 'pedido-uuid', estado: 'HECHO', ganancia: 9000 });
+      expect(notificationsRepo.saveNotification).toHaveBeenCalledWith(expect.objectContaining({ tipo: 'PEDIDO_ESTADO_ACTUALIZADO', destinatarioId: 'admin-uuid', datos: expect.objectContaining({ url: '/delivery?pedidoId=pedido-uuid', ganancia: 9000, valorDomicilio: 9000 }) }));
     });
 
     it('no hace nada si adminId es null', async () => {

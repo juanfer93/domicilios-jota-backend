@@ -26,6 +26,8 @@ export class UsuariosRepository extends Repository<Usuario> {
         'usuario.nombre',
         'usuario.email',
         'usuario.bloqueado',
+        'usuario.disponibilidad',
+        'usuario.lastSeenAt',
         'usuario.createdAt',
       ])
       .orderBy('usuario.nombre', 'ASC')

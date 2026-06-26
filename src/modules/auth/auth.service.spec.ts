@@ -7,6 +7,7 @@ describe('AuthService', () => {
   const usuariosService = {
     findByEmail: jest.fn(),
     validatePassword: jest.fn(),
+    updateDomiciliarioDisponibilidad: jest.fn(),
   };
   const jwtService = {
     sign: jest.fn().mockReturnValue('access-token'),
@@ -31,6 +32,9 @@ describe('AuthService', () => {
       email_confirmado: false,
     });
     usuariosService.validatePassword.mockResolvedValue(true);
+    usuariosService.updateDomiciliarioDisponibilidad.mockResolvedValue({
+      disponibilidad: 'available',
+    });
 
     await expect(
       service.login({
@@ -39,6 +43,10 @@ describe('AuthService', () => {
       }),
     ).resolves.toMatchObject({ accessToken: 'access-token' });
     expect(jwtService.sign).toHaveBeenCalled();
+    expect(usuariosService.updateDomiciliarioDisponibilidad).toHaveBeenCalledWith(
+      'usuario-id',
+      'available',
+    );
   });
 
   it('mantiene el login para un domiciliario confirmado', async () => {
@@ -51,6 +59,9 @@ describe('AuthService', () => {
       email_confirmado: true,
     });
     usuariosService.validatePassword.mockResolvedValue(true);
+    usuariosService.updateDomiciliarioDisponibilidad.mockResolvedValue({
+      disponibilidad: 'available',
+    });
 
     await expect(
       service.login({

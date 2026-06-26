@@ -12,8 +12,11 @@ import { ChangePasswordDto } from './dto/change-password.dto';
 import { EmailService } from '../../common/email/email.service';
 import { Usuario } from './entities/usuario.entity';
 import { Rol } from './enums/rol.enum';
+import { DisponibilidadDomiciliario } from './enums/disponibilidad-domiciliario.enum';
 import { randomBytes } from 'crypto';
 import { getColombiaDateKey, getColombiaDayRange } from '../../common/time/colombia-time';
+
+const COURIER_PRESENCE_TTL_MS = 2 * 60 * 1000;
 
 @Injectable()
 export class UsuariosService {
@@ -138,6 +141,23 @@ export class UsuariosService {
     return randomBytes(12).toString('base64url');
   }
 
+  private resolveDomiciliarioDisponibilidad(
+    usuario: Pick<Usuario, 'disponibilidad' | 'lastSeenAt'>,
+  ): DisponibilidadDomiciliario {
+    if (usuario.disponibilidad === DisponibilidadDomiciliario.OFFLINE) {
+      return DisponibilidadDomiciliario.OFFLINE;
+    }
+
+    if (!usuario.lastSeenAt) {
+      return DisponibilidadDomiciliario.OFFLINE;
+    }
+
+    const lastSeenAt = new Date(usuario.lastSeenAt).getTime();
+    return Date.now() - lastSeenAt <= COURIER_PRESENCE_TTL_MS
+      ? DisponibilidadDomiciliario.AVAILABLE
+      : DisponibilidadDomiciliario.OFFLINE;
+  }
+
   async createDomiciliario(
     dto: CreateDomiciliarioDto,
   ): Promise<Usuario & { passwordTemporal: string }> {
@@ -184,9 +204,10 @@ export class UsuariosService {
     Pick<
       Usuario,
       'id' | 'nombre' | 'email' | 'bloqueado' | 'email_confirmado' | 'createdAt'
+      | 'disponibilidad'
     >[]
   > {
-    return this.usuariosRepository.find({
+    const domiciliarios = await this.usuariosRepository.find({
       where: { rol: Rol.DOMICILIARIO },
       select: [
         'id',
@@ -194,25 +215,114 @@ export class UsuariosService {
         'email',
         'bloqueado',
         'email_confirmado',
+        'disponibilidad',
+        'lastSeenAt',
         'createdAt',
       ],
       order: { createdAt: 'DESC' },
     });
+
+    return domiciliarios.map((domi) => ({
+      id: domi.id,
+      nombre: domi.nombre,
+      email: domi.email,
+      bloqueado: domi.bloqueado,
+      email_confirmado: domi.email_confirmado,
+      disponibilidad: this.resolveDomiciliarioDisponibilidad(domi),
+      createdAt: domi.createdAt,
+    }));
   }
 
   async searchDomiciliarios(
     nombre: string,
   ): Promise<
-    Pick<Usuario, 'id' | 'nombre' | 'email' | 'bloqueado' | 'createdAt'>[]
+    Pick<
+      Usuario,
+      'id' | 'nombre' | 'email' | 'bloqueado' | 'createdAt' | 'disponibilidad'
+    >[]
   > {
-    return this.usuariosRepository.findDomiciliariosByNombre(nombre.trim());
+    const domiciliarios =
+      await this.usuariosRepository.findDomiciliariosByNombre(nombre.trim());
+
+    return domiciliarios.map((domi) => ({
+      id: domi.id,
+      nombre: domi.nombre,
+      email: domi.email,
+      bloqueado: domi.bloqueado,
+      disponibilidad: this.resolveDomiciliarioDisponibilidad(domi),
+      createdAt: domi.createdAt,
+    }));
+  }
+
+  async updateDomiciliarioDisponibilidad(
+    id: string,
+    disponibilidad: DisponibilidadDomiciliario,
+  ): Promise<
+    Pick<
+      Usuario,
+      | 'id'
+      | 'nombre'
+      | 'email'
+      | 'bloqueado'
+      | 'email_confirmado'
+      | 'createdAt'
+      | 'disponibilidad'
+    >
+  > {
+    const domi = await this.usuariosRepository.findOne({
+      where: { id, rol: Rol.DOMICILIARIO },
+    });
+
+    if (!domi) {
+      throw new NotFoundException('Domiciliario no encontrado');
+    }
+
+    domi.disponibilidad = disponibilidad;
+    domi.lastSeenAt =
+      disponibilidad === DisponibilidadDomiciliario.AVAILABLE ? new Date() : null;
+    const guardado = await this.usuariosRepository.save(domi);
+
+    return {
+      id: guardado.id,
+      nombre: guardado.nombre,
+      email: guardado.email,
+      bloqueado: guardado.bloqueado,
+      email_confirmado: guardado.email_confirmado,
+      disponibilidad: this.resolveDomiciliarioDisponibilidad(guardado),
+      createdAt: guardado.createdAt,
+    };
+  }
+
+  async touchDomiciliarioPresence(
+    id: string,
+  ): Promise<Pick<Usuario, 'id' | 'disponibilidad'>> {
+    const domi = await this.usuariosRepository.findOne({
+      where: { id, rol: Rol.DOMICILIARIO },
+    });
+
+    if (!domi) {
+      throw new NotFoundException('Domiciliario no encontrado');
+    }
+
+    if (domi.disponibilidad === DisponibilidadDomiciliario.AVAILABLE) {
+      domi.lastSeenAt = new Date();
+      await this.usuariosRepository.save(domi);
+    }
+
+    return {
+      id: domi.id,
+      disponibilidad: this.resolveDomiciliarioDisponibilidad(domi),
+    };
   }
 
   async toggleBloqueo(
     id: string,
     bloqueado: boolean,
   ): Promise<
-    Pick<Usuario, 'id' | 'nombre' | 'email' | 'bloqueado' | 'createdAt'>
+    Pick<
+      Usuario,
+      'id' | 'nombre' | 'email' | 'bloqueado' | 'createdAt' | 'disponibilidad'
+    >
   > {
     const domi = await this.usuariosRepository.findOne({
       where: { id, rol: Rol.DOMICILIARIO },
@@ -231,6 +341,7 @@ export class UsuariosService {
       nombre: guardado.nombre,
       email: guardado.email,
       bloqueado: guardado.bloqueado,
+      disponibilidad: this.resolveDomiciliarioDisponibilidad(guardado),
       createdAt: guardado.createdAt,
     };
   }

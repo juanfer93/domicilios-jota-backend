@@ -190,7 +190,11 @@ describe('PedidosService', () => {
     });
 
     it('domiciliario puede cambiar estado de su propio pedido', async () => {
-      const pedido = makePedido({ domiciliarioId: 'domi-uuid' });
+      const pedido = makePedido({
+        domiciliarioId: 'domi-uuid',
+        valorDomicilio: 9000,
+        ganancia: 9000,
+      });
       pedidosRepository.findOne
         .mockResolvedValueOnce(pedido)
         .mockResolvedValueOnce({ ...pedido, estado: PedidoEstado.HECHO });
@@ -211,7 +215,11 @@ describe('PedidosService', () => {
       // Esperar la notificación void
       await new Promise((r) => setImmediate(r));
       expect(notificationsService.notifyAdminEstadoCambiado).toHaveBeenCalledWith(
-        expect.objectContaining({ adminId: 'admin-uuid', estado: PedidoEstado.HECHO }),
+        expect.objectContaining({
+          adminId: 'admin-uuid',
+          estado: PedidoEstado.HECHO,
+          ganancia: 9000,
+        }),
       );
     });
 

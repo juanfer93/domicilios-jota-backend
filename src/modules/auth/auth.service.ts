@@ -12,6 +12,7 @@ import { SetPasswordDomiciliarioDto } from './dto/set-password-domiciliario.dto'
 import { JwtPayload } from './interfaces/jwt-payload.interface';
 import { Rol } from '../usuarios/enums/rol.enum';
 import { Usuario } from '../usuarios/entities/usuario.entity';
+import { DisponibilidadDomiciliario } from '../usuarios/enums/disponibilidad-domiciliario.enum';
 import * as bcrypt from 'bcrypt';
 
 @Injectable()
@@ -65,6 +66,16 @@ export class AuthService {
       );
     }
 
+    const disponibilidad =
+      usuario.rol === Rol.DOMICILIARIO
+        ? (
+            await this.usuariosService.updateDomiciliarioDisponibilidad(
+              usuario.id,
+              DisponibilidadDomiciliario.AVAILABLE,
+            )
+          ).disponibilidad
+        : usuario.disponibilidad;
+
     const tokens = this.generateTokens(usuario);
 
     return {
@@ -73,6 +84,7 @@ export class AuthService {
         nombre: usuario.nombre,
         email: usuario.email,
         rol: usuario.rol,
+        disponibilidad,
       },
       ...tokens,
     };

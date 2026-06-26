@@ -14,7 +14,10 @@ import { NotificationsService } from '../notifications/notifications.service';
 import { UsuariosService } from '../usuarios/usuarios.service';
 import { Rol } from '../usuarios/enums/rol.enum';
 import { Usuario } from '../usuarios/entities/usuario.entity';
+import { DisponibilidadDomiciliario } from '../usuarios/enums/disponibilidad-domiciliario.enum';
 import { getColombiaDayRange } from '../../common/time/colombia-time';
+
+const COURIER_PRESENCE_TTL_MS = 2 * 60 * 1000;
 
 @Injectable()
 export class PedidosService {
@@ -148,6 +151,7 @@ export class PedidosService {
         actor.id,
         pedidoId,
         estado,
+        Number(pedido.ganancia ?? pedido.valorDomicilio ?? 0),
       );
     }
 
@@ -247,6 +251,8 @@ export class PedidosService {
   }
 
   private async getNotifiableDomiciliarios() {
+    const connectedAfter = new Date(Date.now() - COURIER_PRESENCE_TTL_MS);
+
     return this.pedidosRepository.manager
       .createQueryBuilder()
       .select('usuario.id', 'id')
@@ -255,6 +261,10 @@ export class PedidosService {
       .where('usuario.rol = :rol', { rol: Rol.DOMICILIARIO })
       .andWhere('usuario.bloqueado = false')
       .andWhere('usuario.email_confirmado = true')
+      .andWhere('usuario.disponibilidad = :disponibilidad', {
+        disponibilidad: DisponibilidadDomiciliario.AVAILABLE,
+      })
+      .andWhere('usuario.last_seen_at >= :connectedAfter', { connectedAfter })
       .orderBy('usuario.nombre', 'ASC')
       .getRawMany<{ id: string; nombre: string }>();
   }
@@ -338,6 +348,7 @@ export class PedidosService {
     domiciliarioId: string,
     pedidoId: string,
     estado: PedidoEstado,
+    ganancia: number,
   ) {
     try {
       const d = await this.usuariosService.findOne(domiciliarioId);
@@ -347,6 +358,7 @@ export class PedidosService {
         domiciliarioNombre: d.nombre,
         pedidoId,
         estado,
+        ganancia,
       });
     } catch (error: unknown) {
       const msg = error instanceof Error ? error.message : String(error);

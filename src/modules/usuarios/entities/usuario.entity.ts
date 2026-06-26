@@ -7,6 +7,7 @@ import {
 } from 'typeorm';
 import { Exclude } from 'class-transformer';
 import { Rol } from '../enums/rol.enum';
+import { DisponibilidadDomiciliario } from '../enums/disponibilidad-domiciliario.enum';
 import { Pedido } from '../../pedidos/entities/pedido.entity';
 
 @Entity('usuarios')
@@ -32,6 +33,17 @@ export class Usuario {
 
   @Column({ name: 'bloqueado', type: 'boolean', default: false })
   bloqueado!: boolean;
+
+  @Column({
+    name: 'disponibilidad',
+    type: 'varchar',
+    length: 20,
+    default: DisponibilidadDomiciliario.AVAILABLE,
+  })
+  disponibilidad!: DisponibilidadDomiciliario;
+
+  @Column({ name: 'last_seen_at', type: 'timestamptz', nullable: true })
+  lastSeenAt!: Date | null;
 
   @Column({ type: 'varchar', nullable: true })
   email_confirmacion_token!: string | null;

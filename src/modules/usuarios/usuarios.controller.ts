@@ -20,6 +20,7 @@ import { Usuario } from './entities/usuario.entity';
 import { CreateDomiciliarioDto } from './dto/create-domiciliario.dto';
 import { ToggleBloqueoDto } from './dto/toggle-bloqueo.dto';
 import { ChangePasswordDto } from './dto/change-password.dto';
+import { UpdateDisponibilidadDto } from './dto/update-disponibilidad.dto';
 
 @Controller('usuarios')
 @UseGuards(JwtAuthGuard, RolesGuard)
@@ -38,6 +39,24 @@ export class DomiciliariosPublicController {
     @Body() dto: ChangePasswordDto,
   ) {
     return this.usuariosService.changeCurrentUserPassword(userId, dto);
+  }
+
+  @Patch('perfil/disponibilidad')
+  @Roles(Rol.DOMICILIARIO)
+  updateCurrentDomiciliarioDisponibilidad(
+    @CurrentUser('id') userId: string,
+    @Body() dto: UpdateDisponibilidadDto,
+  ) {
+    return this.usuariosService.updateDomiciliarioDisponibilidad(
+      userId,
+      dto.disponibilidad,
+    );
+  }
+
+  @Patch('perfil/presencia')
+  @Roles(Rol.DOMICILIARIO)
+  touchCurrentDomiciliarioPresence(@CurrentUser('id') userId: string) {
+    return this.usuariosService.touchDomiciliarioPresence(userId);
   }
 
   @Post('domiciliarios')

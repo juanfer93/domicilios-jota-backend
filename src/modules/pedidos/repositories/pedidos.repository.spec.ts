@@ -39,6 +39,10 @@ describe('PedidosRepository assignment candidates', () => {
     expect(queryBuilder.andWhere).toHaveBeenCalledWith(
       'activePedido.id IS NULL',
     );
+    expect(queryBuilder.andWhere).toHaveBeenCalledWith(
+      'usuario.disponibilidad = :disponibilidad',
+      { disponibilidad: 'available' },
+    );
   });
 
   it('filtra un domiciliario manual por id y solo si esta disponible', async () => {
