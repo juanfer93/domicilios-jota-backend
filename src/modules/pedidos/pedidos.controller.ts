@@ -81,6 +81,12 @@ export class PedidosController {
     return this.pedidosService.getCurrentPedidoForDomiciliario(req.user.id);
   }
 
+  @Get('domiciliarios/current/list')
+  @Roles(Rol.DOMICILIARIO)
+  getCurrentListForDomiciliario(@Req() req: any) {
+    return this.pedidosService.getCurrentPedidosForDomiciliario(req.user.id);
+  }
+
   @Get('domiciliarios/history')
   @Roles(Rol.DOMICILIARIO)
   getHistorialDomiciliario(@Query('date') date: string, @Req() req: any) {

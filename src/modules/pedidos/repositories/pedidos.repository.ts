@@ -5,6 +5,7 @@ import { Usuario } from '../../usuarios/entities/usuario.entity';
 import { Rol } from '../../usuarios/enums/rol.enum';
 import { DisponibilidadDomiciliario } from '../../usuarios/enums/disponibilidad-domiciliario.enum';
 import { PedidoEstado } from '../enums/estado-pedido.enum';
+import { MAX_ACTIVE_PEDIDOS_PER_DOMICILIARIO } from '../pedidos.constants';
 
 const COURIER_PRESENCE_TTL_MS = 2 * 60 * 1000;
 
@@ -12,6 +13,7 @@ export interface DomiciliarioAssignmentCandidate {
   id: string;
   nombre: string;
   lastAssignedAt: Date | string | null;
+  activePedidosCount: number | string;
 }
 
 @Injectable()
@@ -65,6 +67,14 @@ export class PedidosRepository extends Repository<Pedido> {
       .andWhere('estado = :estado', { estado: PedidoEstado.EN_PROCESO })
       .andWhere('usuario_id IS NULL')
       .andWhere('domiciliario_id IS NULL')
+      .andWhere(
+        '(SELECT COUNT(1) FROM pedidos active_pedido WHERE active_pedido.usuario_id = :domiciliarioId AND active_pedido.estado = :activeState) < :maxActivePedidos',
+        {
+          domiciliarioId,
+          activeState: PedidoEstado.EN_PROCESO,
+          maxActivePedidos: MAX_ACTIVE_PEDIDOS_PER_DOMICILIARIO,
+        },
+      )
       .execute();
 
     if (!result.affected) {
@@ -102,6 +112,7 @@ export class PedidosRepository extends Repository<Pedido> {
         'MAX(COALESCE(pedido.assigned_at, pedido.created_at))',
         'lastAssignedAt',
       )
+      .addSelect('COUNT(DISTINCT activePedido.id)', 'activePedidosCount')
       .from(Usuario, 'usuario')
       .leftJoin(Pedido, 'pedido', 'pedido.usuario_id = usuario.id')
       .leftJoin(
@@ -117,8 +128,10 @@ export class PedidosRepository extends Repository<Pedido> {
         disponibilidad: DisponibilidadDomiciliario.AVAILABLE,
       })
       .andWhere('usuario.last_seen_at >= :connectedAfter', { connectedAfter })
-      .andWhere('activePedido.id IS NULL')
       .groupBy('usuario.id')
-      .addGroupBy('usuario.nombre');
+      .addGroupBy('usuario.nombre')
+      .having('COUNT(DISTINCT activePedido.id) < :maxActivePedidos', {
+        maxActivePedidos: MAX_ACTIVE_PEDIDOS_PER_DOMICILIARIO,
+      });
   }
 }

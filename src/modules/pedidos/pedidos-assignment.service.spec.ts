@@ -77,6 +77,7 @@ describe('PedidosService queue and manual assignment', () => {
       id: 'domi-manual',
       nombre: 'Domi Manual',
       lastAssignedAt: null,
+      activePedidosCount: 2,
     });
 
     await service.createPedidoByAdmin(
@@ -106,7 +107,7 @@ describe('PedidosService queue and manual assignment', () => {
     );
   });
 
-  it('rechaza asignacion manual si el domiciliario esta ocupado o no disponible', async () => {
+  it('rechaza asignacion manual si el domiciliario llego al cupo o no disponible', async () => {
     pedidosRepository.findAvailableCourierById.mockResolvedValue(null);
 
     await expect(

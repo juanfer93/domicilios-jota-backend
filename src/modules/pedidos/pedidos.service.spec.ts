@@ -35,11 +35,13 @@ describe('PedidosService', () => {
     findAllHistory: jest.fn(),
     findAssignmentCandidates: jest.fn(),
     findAvailableCourierById: jest.fn(),
+    takeAvailablePedido: jest.fn(),
   };
 
   const notificationsService = {
     notifyUser: jest.fn(),
     notifyDomiciliarioAsignado: jest.fn(),
+    notifyAdminPedidoTomado: jest.fn(),
     notifyAdminEstadoCambiado: jest.fn(),
   };
 
@@ -55,6 +57,7 @@ describe('PedidosService', () => {
         id: domiciliarioId,
         nombre: 'Domiciliario Disponible',
         lastAssignedAt: null,
+        activePedidosCount: 0,
       }),
     );
 
@@ -63,6 +66,7 @@ describe('PedidosService', () => {
         id: 'domi-uuid',
         nombre: 'Juan Domiciliario',
         lastAssignedAt: null,
+        activePedidosCount: 0,
       },
     ]);
 
@@ -165,8 +169,45 @@ describe('PedidosService', () => {
       expect(pedidosRepository.save).not.toHaveBeenCalled();
     });
   });
+  describe('tomarPedidoDisponible', () => {
+    it('permite tomar pedido cuando el domiciliario tiene menos de 3 activos', async () => {
+      const pedido = makePedido({
+        id: 'pedido-libre',
+        domiciliarioId: 'domi-uuid',
+      });
+      pedidosRepository.find.mockResolvedValueOnce([
+        makePedido({ id: 'activo-1' }),
+        makePedido({ id: 'activo-2' }),
+      ]);
+      pedidosRepository.takeAvailablePedido.mockResolvedValueOnce(pedido);
+      usuariosService.findOne.mockResolvedValue(makeUsuario());
 
-  // ── updateEstadoPedido ───────────────────────────────────────────────────
+      await expect(
+        service.tomarPedidoDisponible('pedido-libre', 'domi-uuid'),
+      ).resolves.toBe(pedido);
+
+      expect(pedidosRepository.takeAvailablePedido).toHaveBeenCalledWith(
+        'pedido-libre',
+        'domi-uuid',
+      );
+    });
+
+    it('rechaza tomar pedido cuando el domiciliario ya tiene 3 activos', async () => {
+      pedidosRepository.find.mockResolvedValueOnce([
+        makePedido({ id: 'activo-1' }),
+        makePedido({ id: 'activo-2' }),
+        makePedido({ id: 'activo-3' }),
+      ]);
+
+      await expect(
+        service.tomarPedidoDisponible('pedido-libre', 'domi-uuid'),
+      ).rejects.toThrow(BadRequestException);
+
+      expect(pedidosRepository.takeAvailablePedido).not.toHaveBeenCalled();
+    });
+  });
+
+  // updateEstadoPedido ───────────────────────────────────────────────────
 
   describe('updateEstadoPedido', () => {
     it('admin puede cambiar el estado de cualquier pedido', async () => {

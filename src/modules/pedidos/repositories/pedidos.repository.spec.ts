@@ -12,12 +12,13 @@ const makeQueryBuilder = () => ({
   andWhere: jest.fn().mockReturnThis(),
   groupBy: jest.fn().mockReturnThis(),
   addGroupBy: jest.fn().mockReturnThis(),
+  having: jest.fn().mockReturnThis(),
   getRawMany: jest.fn().mockResolvedValue([]),
   getRawOne: jest.fn().mockResolvedValue(null),
 });
 
 describe('PedidosRepository assignment candidates', () => {
-  it('excluye domiciliarios con pedidos activos EN_PROCESO', async () => {
+  it('incluye domiciliarios con menos de 3 pedidos activos EN_PROCESO', async () => {
     const queryBuilder = makeQueryBuilder();
 
     const dataSource = {
@@ -36,8 +37,9 @@ describe('PedidosRepository assignment candidates', () => {
       { activeState: PedidoEstado.EN_PROCESO },
     );
 
-    expect(queryBuilder.andWhere).toHaveBeenCalledWith(
-      'activePedido.id IS NULL',
+    expect(queryBuilder.having).toHaveBeenCalledWith(
+      'COUNT(DISTINCT activePedido.id) < :maxActivePedidos',
+      { maxActivePedidos: 3 },
     );
     expect(queryBuilder.andWhere).toHaveBeenCalledWith(
       'usuario.disponibilidad = :disponibilidad',

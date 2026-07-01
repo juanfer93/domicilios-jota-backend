@@ -16,6 +16,7 @@ import { Rol } from '../usuarios/enums/rol.enum';
 import { Usuario } from '../usuarios/entities/usuario.entity';
 import { DisponibilidadDomiciliario } from '../usuarios/enums/disponibilidad-domiciliario.enum';
 import { getColombiaDayRange } from '../../common/time/colombia-time';
+import { MAX_ACTIVE_PEDIDOS_PER_DOMICILIARIO } from './pedidos.constants';
 
 const COURIER_PRESENCE_TTL_MS = 2 * 60 * 1000;
 
@@ -91,11 +92,12 @@ export class PedidosService {
   }
 
   async tomarPedidoDisponible(pedidoId: string, domiciliarioId: string) {
-    const current = await this.getCurrentPedidoForDomiciliario(domiciliarioId);
+    const currentPedidos =
+      await this.getCurrentPedidosForDomiciliario(domiciliarioId);
 
-    if (current) {
+    if (currentPedidos.length >= MAX_ACTIVE_PEDIDOS_PER_DOMICILIARIO) {
       throw new BadRequestException(
-        'Ya tienes un pedido en curso. Finalízalo antes de tomar otro.',
+        `Ya tienes ${MAX_ACTIVE_PEDIDOS_PER_DOMICILIARIO} pedidos en curso. Finaliza uno antes de tomar otro.`,
       );
     }
 
@@ -216,6 +218,12 @@ export class PedidosService {
   }
 
   async getCurrentPedidoForDomiciliario(usuarioId: string) {
+    const pedidos = await this.getCurrentPedidosForDomiciliario(usuarioId);
+
+    return pedidos[0] ?? null;
+  }
+
+  async getCurrentPedidosForDomiciliario(usuarioId: string) {
     const pedidos = await this.pedidosRepository.find({
       where: {
         usuarioId,
@@ -223,10 +231,10 @@ export class PedidosService {
       },
       relations: ['usuario', 'comercio'],
       order: { createdAt: 'DESC' },
-      take: 1,
+      take: MAX_ACTIVE_PEDIDOS_PER_DOMICILIARIO,
     });
 
-    return pedidos[0] ?? null;
+    return pedidos;
   }
 
   private async resolveManualDomiciliarioId(
@@ -258,6 +266,12 @@ export class PedidosService {
       .select('usuario.id', 'id')
       .addSelect('usuario.nombre', 'nombre')
       .from(Usuario, 'usuario')
+      .leftJoin(
+        Pedido,
+        'activePedido',
+        'activePedido.usuario_id = usuario.id AND activePedido.estado = :activeState',
+        { activeState: PedidoEstado.EN_PROCESO },
+      )
       .where('usuario.rol = :rol', { rol: Rol.DOMICILIARIO })
       .andWhere('usuario.bloqueado = false')
       .andWhere('usuario.email_confirmado = true')
@@ -265,6 +279,11 @@ export class PedidosService {
         disponibilidad: DisponibilidadDomiciliario.AVAILABLE,
       })
       .andWhere('usuario.last_seen_at >= :connectedAfter', { connectedAfter })
+      .groupBy('usuario.id')
+      .addGroupBy('usuario.nombre')
+      .having('COUNT(DISTINCT activePedido.id) < :maxActivePedidos', {
+        maxActivePedidos: MAX_ACTIVE_PEDIDOS_PER_DOMICILIARIO,
+      })
       .orderBy('usuario.nombre', 'ASC')
       .getRawMany<{ id: string; nombre: string }>();
   }
